@@ -45,11 +45,11 @@ pub type SocketAddress {
 
 /// Every webserver is defined by a handler, that accepts incoming requests
 /// and returns outcoming responses. Because JavaScript is asynchronous,
-/// handlers should return `Promise`. In Bun, every handlers can also access the
-/// `Server` instance, for example to read configuration at runtime.
+/// handlers should always return `Promise`. In Bun, every handlers can also
+/// access the `Server` instance, for example to read configuration at runtime.
 ///
-/// `handler` creates the initial configuration object for Bun servers to use in
-/// conjuction with `serve`.
+/// `handler` creates the initial configuration object for Bun servers to use
+/// in conjuction with `serve`.
 ///
 /// ```gleam
 /// import bun
@@ -63,6 +63,7 @@ pub type SocketAddress {
 ///
 /// fn handler(req: Request, server: bun.Server) -> Promise(Response) {
 ///   server.text_response("OK")
+///   |> promise.resolve
 /// }
 /// ```
 pub fn handler(
@@ -276,8 +277,70 @@ pub fn request_ip(
   timeout: Int,
 ) -> Option(SocketAddress)
 
-@external(javascript, "./server.ffi.mjs", "upgrade")
+/// Upgrade a Request to a WebSocket connection handled by Bun. In case the
+/// upgrading could not be achieved, continue the execution. If the upgrade is
+/// successful, `upgrade` will automatically return, and shortcut execution.
+///
+/// ```gleam
+/// import brioche
+/// import brioche/server.{type Request, type Server}
+/// import gleam/javascript/promise.{type Promise}
+///
+/// // Context is the data sent during the WebSocket creation. After `upgrade`
+/// // calls, it's possible to set a context scoped to the newly created
+/// // WebSocket. Any data can be set, and it's up to you to choose what
+/// // data you want to put in the context.
+/// pub type Context {
+///   Context(
+///     /// In this example, push a session_id in the context in order
+///     /// to identify the user easily across sessions if needed.
+///     session_id: String,
+///   )
+/// }
+///
+/// /// Handler function used in Bun servers. Upgrading a WebSocket should be
+/// /// done in a Bun handler. When upgrading, Buns respond for you, and returns
+/// /// 101 Switching Protocols instead of another response (like 200 for example).
+/// /// That handler upgrade a connection to WebSocket no matter what the path
+/// /// is. In your real handler, you probably want to upgrade the connection iif
+/// /// the request comes on a specific path (like /ws for example).
+/// fn handler(req: Request, server: Server(context)) {
+///   // Create the initial session for the WebSocket.
+///   let session_id = brioche.random_uuid_v7()
+///   let initial_context = Context(session_id:)
+///   // Prepare headers to return after Bun responds 101 Switching Protocols.
+///   let headers = [#("set-cookie", "session_id=" <> session_id)]
+///   // Upgrade the connection.
+///   use <- server.upgrade(server, request, headers, initial_context)
+///   // If upgrading failed, code below will execute.
+///   brioche.internal_error()
+///   |> brioche.text_body("Impossible to upgrade connection, internal error.")
+///   |> promise.resolve
+/// }
+///
+/// // Run your server, and let your connection come.
+/// fn main() {
+///   server.handler(handler)
+///   |> server.serve
+/// }
+/// ```
 pub fn upgrade(
+  server: Server(context),
+  request: Request,
+  headers: List(#(String, String)),
+  context: context,
+  next: fn() -> Promise(Response),
+) -> Promise(Response) {
+  case do_upgrade(server, request, headers, context) {
+    // Connection has been upgraded, don't return anything.
+    True -> coerce(Nil)
+    // Connection has not been upgraded, continue with the following execution.
+    False -> next()
+  }
+}
+
+@external(javascript, "./server.ffi.mjs", "upgrade")
+fn do_upgrade(
   server: Server(context),
   request: Request,
   headers: List(#(String, String)),
@@ -344,6 +407,11 @@ pub fn not_found() -> Response {
   |> response.set_body(Empty)
 }
 
+pub fn internal_error() -> Response {
+  response.new(500)
+  |> response.set_body(Empty)
+}
+
 pub fn text_body(response: Response, content: String) {
   response.set_body(response, Text(content))
 }
@@ -359,3 +427,6 @@ pub fn bytes_body(response: Response, content: BitArray) {
 pub fn empty_body(response: Response) {
   response.set_body(response, Empty)
 }
+
+@external(javascript, "./server.ffi.mjs", "coerce")
+fn coerce(a: a) -> b

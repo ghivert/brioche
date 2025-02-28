@@ -1,10 +1,13 @@
-import * as $server from "./server.mjs"
-import * as $websocket from "./websocket.mjs"
-import * as $gleam from "../gleam.mjs"
-import * as $request from "../../gleam_http/gleam/http/request.mjs"
-import * as $http from "../../gleam_http/gleam/http.mjs"
-import * as $option from "../../gleam_stdlib/gleam/option.mjs"
+import * as $server from './server.mjs'
+import * as $websocket from './websocket.mjs'
+import * as $gleam from '../gleam.mjs'
+import * as $request from '../../gleam_http/gleam/http/request.mjs'
+import * as $http from '../../gleam_http/gleam/http.mjs'
+import * as $option from '../../gleam_stdlib/gleam/option.mjs'
 
+export function coerce(a) {
+  return a
+}
 export function serve(options) {
   const opts = convertOptions(options)
   const server = Bun.serve(opts)
@@ -35,7 +38,7 @@ export function timeout(server, request, timeout) {
 export function requestIp(server, request) {
   const ip = server.requestIP(request)
   if (!ip) return new $option.None()
-  const family = ip.family === "IPv4" ? new $option.IPv4() : new $option.IPv6()
+  const family = ip.family === 'IPv4' ? new $option.IPv4() : new $option.IPv6()
   const socketAddress = new $server.SocketAddress(ip.address, ip.port, family)
   return new $option.Some(socketAddress)
 }
@@ -48,25 +51,26 @@ export function upgrade(server, request, headers, context) {
 }
 
 export function publish(server, topic, data) {
-  const result = server.publish(topic, data)
+  const dat = data.buffer !== undefined ? data.buffer : data
+  const result = server.publish(topic, dat)
   if (result === 0) return new $websocket.MessageDropped()
   if (result === -1) return new $websocket.MessageBackpressured()
   return new $websocket.MessageSent(result)
 }
 
 export const stop = (server, force) => server.stop(force)
-export const getPort = (server) => server.port
-export const getDevelopment = (server) => server.development
-export const getHostname = (server) => server.hostname
-export const getId = (server) => server.id
-export const getPendingRequests = (server) => server.pendingRequests
-export const getPendingWebsockets = (server) => server.pendingWebsockets
-export const getUrl = (server) => server.url.toString()
+export const getPort = server => server.port
+export const getDevelopment = server => server.development
+export const getHostname = server => server.hostname
+export const getId = server => server.id
+export const getPendingRequests = server => server.pendingRequests
+export const getPendingWebsockets = server => server.pendingWebsockets
+export const getUrl = server => server.url.toString()
 export const subscriberCount = (server, topic) => server.subscriberCount(topic)
-export const data = (ws) => ws.data
-export const readyState = (ws) => ws.readyState
-export const remoteAddress = (ws) => ws.remoteAddress
-export const wsClose = (ws) => ws.close()
+export const data = ws => ws.data
+export const readyState = ws => ws.readyState
+export const remoteAddress = ws => ws.remoteAddress
+export const wsClose = ws => ws.close()
 export const wsSubscribe = (ws, topic) => ws.subscribe(topic)
 export const wsUnsubscribe = (ws, topic) => ws.unsubscribe(topic)
 export const wsPublish = (ws, topic, message) => ws.publish(topic, message)
@@ -102,11 +106,11 @@ function toHttpRequest(request) {
     request.method,
     $gleam.toList([...request.headers]),
     request,
-    url.protocol === "http:" ? new $http.Http() : new $http.Https(),
+    url.protocol === 'http:' ? new $http.Http() : new $http.Https(),
     url.hostname,
     isNaN(port) ? new $option.None() : new $option.Some(port),
     url.pathname,
-    url.search ? new $option.Some(url.search) : new $option.None(),
+    url.search ? new $option.Some(url.search) : new $option.None()
   )
 }
 
@@ -115,9 +119,9 @@ function generateResponse(res) {
   const headers = new Headers()
   for (const [header, value] of res.headers) headers.append(header, value)
   const options = { status, headers }
-  if ("text" in res.body) return new Response(res.body.text, options)
-  if ("json" in res.body) return Response.json(res.body.json, options)
-  if ("bytes" in res.body) return new Response(res.body.bytes, options)
+  if ('text' in res.body) return new Response(res.body.text, options)
+  if ('json' in res.body) return Response.json(res.body.json, options)
+  if ('bytes' in res.body) return new Response(res.body.bytes, options)
   return new Response(null, options)
 }
 
@@ -163,9 +167,9 @@ function generateWebsocket(options) {
 
 function generateMessageHandler(websocket) {
   return function (ws, message) {
-    if (typeof message === "string")
+    if (typeof message === 'string')
       return websocket.text_message[0]?.(ws, message)
-    if (typeof message === "object")
+    if (typeof message === 'object')
       return websocket.bytes_message[0]?.(ws, message)
   }
 }
