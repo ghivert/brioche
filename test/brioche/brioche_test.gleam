@@ -1,4 +1,4 @@
-import brioche
+import brioche as bun
 import gleam/float
 import gleam/int
 import gleam/javascript/promise
@@ -17,34 +17,34 @@ const version = "1.2.4"
 const revision = "fd9a5ea668e9ffce5fd5f25a7cfd2d45f0eaa85b"
 
 pub fn version_test() {
-  brioche.version()
+  bun.version()
   |> should.equal(version)
 }
 
 pub fn revision_test() {
-  brioche.revision()
+  bun.revision()
   |> should.equal(revision)
 }
 
 pub fn main_script_test() {
-  brioche.main_script()
+  bun.main_script()
   |> string.contains("brioche/gleam.main.mjs")
   |> should.be_true
 }
 
 pub fn which_test() {
-  case brioche.which("ls") {
+  case bun.which("ls") {
     Ok("/bin/ls") -> Nil
     Ok("/usr/bin/ls") -> Nil
     _ -> should.fail()
   }
-  brioche.which("azerty")
+  bun.which("azerty")
   |> should.be_error
   |> should.equal(Nil)
 }
 
 pub fn random_uuid_test() {
-  let uuid = brioche.random_uuid_v7()
+  let uuid = bun.random_uuid_v7()
   let parts = string.split(uuid, on: "-")
   case parts {
     [a, b, c, d, e] -> {
@@ -60,7 +60,7 @@ pub fn random_uuid_test() {
 
 pub fn sleep_sync_test() {
   let start = timestamp.system_time()
-  brioche.sleep(25)
+  bun.sleep(25)
   let end = timestamp.system_time()
   let delta = timestamp.difference(start, end)
   let #(_, nanoseconds) = duration.to_seconds_and_nanoseconds(delta)
@@ -75,9 +75,9 @@ pub fn peek_test() {
   let resolve = promise.resolve("test")
   let rejection = promises.reject()
   let pending = promises.pending()
-  brioche.peek(resolve) |> should.be_ok |> should.equal("test")
-  brioche.peek(rejection) |> should.be_error |> should.equal(Nil)
-  brioche.peek(pending) |> should.be_error |> should.equal(Nil)
+  bun.peek(resolve) |> should.be_ok |> should.equal("test")
+  bun.peek(rejection) |> should.be_error |> should.equal(Nil)
+  bun.peek(pending) |> should.be_error |> should.equal(Nil)
   // Rescue the error to avoid Bun to trigger an error.
   promise.rescue(rejection, fn(_) { Nil })
 }
@@ -86,32 +86,32 @@ pub fn peek_status_test() {
   let resolve = promise.resolve("test")
   let rejection = promises.reject()
   let pending = promises.pending()
-  brioche.peek_status(resolve) |> should.equal(brioche.Fulfilled)
-  brioche.peek_status(rejection) |> should.equal(brioche.Rejected)
-  brioche.peek_status(pending) |> should.equal(brioche.Pending)
+  bun.peek_status(resolve) |> should.equal(bun.Fulfilled)
+  bun.peek_status(rejection) |> should.equal(bun.Rejected)
+  bun.peek_status(pending) |> should.equal(bun.Pending)
   // Rescue the error to avoid Bun to trigger an error.
   promise.rescue(rejection, fn(_) { Nil })
 }
 
 pub fn string_width_test() {
-  brioche.string_width("test")
+  bun.string_width("test")
   |> should.equal(4)
 }
 
 pub fn gzip_test() {
   let input = <<1, 2, 3, 4, 5>>
-  brioche.gzip(input)
+  bun.gzip(input)
   |> should.be_ok
-  |> brioche.gunzip
+  |> bun.gunzip
   |> should.be_ok
   |> should.equal(input)
 }
 
 pub fn inflate_test() {
   let input = <<1, 2, 3, 4, 5>>
-  brioche.deflate(input)
+  bun.deflate(input)
   |> should.be_ok
-  |> brioche.inflate
+  |> bun.inflate
   |> should.be_ok
   |> should.equal(input)
 }

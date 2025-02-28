@@ -1,4 +1,4 @@
-import brioche
+import brioche as bun
 import gleam/option.{type Option, None, Some}
 
 pub type TLS {
@@ -17,7 +17,7 @@ pub type TLS {
 pub type Data {
   Text(content: String)
   Bytes(content: BitArray)
-  File(content: brioche.File)
+  File(content: bun.File)
 }
 
 pub fn new(key: Data, cert: Data) -> TLS {
