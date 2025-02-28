@@ -1,24 +1,43 @@
-# bun
+# Brioche
 
-[![Package Version](https://img.shields.io/hexpm/v/bun)](https://hex.pm/packages/bun)
-[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/bun/)
+Brioche provides bindings over Bun API.
 
-```sh
-gleam add bun@1
-```
-```gleam
-import bun
+## Getting Started
 
-pub fn main() {
-  // TODO: An example of the project in use
-}
-```
+You need Bun & Gleam to get started.
 
-Further documentation can be found at <https://hexdocs.pm/bun>.
-
-## Development
+### Installing Brioche
 
 ```sh
-gleam run   # Run the project
-gleam test  # Run the tests
+gleam add brioche
+```
+
+When working with JavaScript, it's advised to install the common toolbox of
+JavaScript utilities for Gleam.
+
+```sh
+gleam add gleam_javascript gleam_http gleam_fetch gleam_json
+```
+
+### Setting your `gleam.toml`
+
+```toml
+name = "your_project"
+version = "1.0.0"
+target = "javascript"
+
+[javascript]
+typescript_declarations = true
+runtime = "bun"
+
+[dependencies]
+brioche = ">= 1.0.0 and < 2.0.0"
+gleam_stdlib = ">= 0.44.0 and < 2.0.0"
+gleam_javascript = ">= 1.0.0 and < 2.0.0"
+gleam_http = ">= 4.0.0 and < 5.0.0"
+gleam_fetch = ">= 1.1.1 and < 2.0.0"
+gleam_json = ">= 2.3.0 and < 3.0.0"
+
+[dev-dependencies]
+gleeunit = ">= 1.0.0 and < 2.0.0"
 ```
