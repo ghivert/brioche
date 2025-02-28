@@ -33,3 +33,12 @@ pub fn copy(file: File, to to: File) -> Promise(Result(Int, Nil))
 
 @external(javascript, "./file.ffi.mjs", "writer")
 pub fn writer(file: File) -> FileSink
+
+@external(javascript, "./file.ffi.mjs", "stdin")
+pub fn stdin() -> File
+
+@external(javascript, "./file.ffi.mjs", "stdout")
+pub fn stdout() -> File
+
+@external(javascript, "./file.ffi.mjs", "stderr")
+pub fn stderr() -> File

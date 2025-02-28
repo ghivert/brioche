@@ -1,5 +1,9 @@
 import * as gleam from '../gleam.mjs'
 
+export const stdin = () => Bun.stdin
+export const stdout = () => Bun.stdout
+export const stderr = () => Bun.stderr
+
 export const newFile = path => Bun.file(path)
 export const exists = file => file.exists()
 export const size = file => file.size
