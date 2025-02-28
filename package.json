@@ -1,0 +1,8 @@
+{
+  "name": "brioche",
+  "dependencies": {},
+  "devDependencies": {
+    "@types/bun": "^1.2.4",
+    "prettier": "^3.5.2"
+  }
+}
