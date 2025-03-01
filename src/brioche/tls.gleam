@@ -20,7 +20,7 @@ pub type Data {
   File(content: bun.File)
 }
 
-pub fn new(key: Data, cert: Data) -> TLS {
+pub fn new(key key: Data, cert cert: Data) -> TLS {
   TLS(
     key:,
     cert:,

@@ -43,6 +43,8 @@ pub type SocketAddress {
   SocketAddress(address: String, port: Int, family: IP)
 }
 
+pub const path_segments = request.path_segments
+
 /// Every webserver is defined by a handler, that accepts incoming requests
 /// and returns outcoming responses. Because JavaScript is asynchronous,
 /// handlers should always return `Promise`. In Bun, every handlers can also
@@ -85,6 +87,18 @@ pub fn handler(
 /// If not set, defaults to environment variables `BUN_PORT`, `PORT`, `NODE_PORT`,
 /// and ultimately if those are not set, on the standard port 3000.
 /// Be careful, setting port to `0` will select a port randomly.
+///
+/// ```gleam
+/// import bun
+/// import bun/server.{type Request, type Response}
+/// import gleam/javascript/promise.{type Promise}
+///
+/// pub fn main() -> bun.Server {
+///   server.handler(handler)
+///   |> server.port(3000)
+///   |> server.serve
+/// }
+/// ```
 pub fn port(options: Config(context), port: Int) -> Config(context) {
   let port = Some(port)
   Config(..options, port:)
@@ -184,6 +198,8 @@ pub fn unix(options: Config(context), unix: String) -> Config(context) {
 /// the server closes it. A connection is idling if there is no data sent or
 /// received.
 ///
+/// Timeout is in seconds here.
+///
 /// ```gleam
 /// import bun
 /// import bun/server
@@ -194,16 +210,58 @@ pub fn unix(options: Config(context), unix: String) -> Config(context) {
 ///   |> server.serve
 /// }
 /// ```
-pub fn idle_timeout(options: Config(context), timeout: Int) -> Config(context) {
+pub fn idle_timeout(
+  options: Config(context),
+  after timeout: Int,
+) -> Config(context) {
   let idle_timeout = Some(timeout)
   Config(..options, idle_timeout:)
 }
 
+/// Set the TLS configuration to create an HTTPS server. More information can
+/// be found in `brioche/tls` module.
+///
+/// ```gleam
+/// import brioche
+/// import brioche/file
+/// import brioche/server
+/// import brioche/tls
+///
+/// pub fn main() -> brioche.Server {
+///   server.handler(handler)
+///   |> server.tls({
+///     let key = tls.File(file.new("/path/to/key/file.key"))
+///     let cert = tls.File(file.new("/path/to/cert/file.cert"))
+///     tls.new(key:, cert:)
+///   })
+/// }
+/// ```
 pub fn tls(options: Config(context), tls: tls.TLS) -> Config(context) {
   let tls = Some(tls)
   Config(..options, tls:)
 }
 
+/// Set the websocket configuration on the server. When not set, server will
+/// reject upgrading a connection to WebSocket. More information can be found
+/// in `brioche/websocket` module.
+/// ```gleam
+/// import brioche
+/// import brioche/file
+/// import brioche/server
+/// import brioche/websocket
+///
+/// pub fn main() -> brioche.Server {
+///   server.handler(handler)
+///   |> server.websocket({
+///     websocket.init()
+///     |> websocket.on_open(fn (socket) { promise.resolve(Nil) })
+///     |> websocket.on_drain(fn (socket) { promise.resolve(Nil) })
+///     |> websocket.on_close(fn (socket, code, reason) { promise.resolve(Nil) })
+///     |> websocket.on_text(fn (socket, text) { promise.resolve(Nil) })
+///     |> websocket.on_bytes(fn (socket, bytes) { promise.resolve(Nil) })
+///   })
+/// }
+/// ```
 pub fn websocket(
   options: Config(context),
   websocket: websocket.Config(context),
@@ -248,7 +306,7 @@ pub fn reload(
 /// will immediately stop all pending connections, otherwise it let in-flight
 /// requests & WebSocket connections to complete.
 @external(javascript, "./server.ffi.mjs", "stop")
-pub fn stop(server: Server(context), force: Bool) -> Promise(Nil)
+pub fn stop(server: Server(context), force force: Bool) -> Promise(Nil)
 
 /// Count server as running to determine if process should be kept
 /// alive or not. Restore the default behaviour of servers.
