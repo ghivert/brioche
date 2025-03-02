@@ -1,20 +1,23 @@
 import brioche.{type Server}
-import brioche/server.{type Request, type Response}
+import brioche/server.{type Request, type Response} as bun
 import gleam/bool
+import gleam/dynamic/decode
 import gleam/fetch
 import gleam/http/request
 import gleam/int
 import gleam/javascript/promise.{type Promise}
+import gleam/json
+import gleam/option
 import gleeunit/should
 
 pub fn with_server(
   handler: fn(Request, Server(ctx)) -> Promise(Response),
   next: fn(Server(ctx), Int) -> Promise(Nil),
 ) -> Promise(Nil) {
-  let server = server.handler(handler) |> server.port(0) |> server.serve
-  let port = server.get_port(server)
+  let server = bun.handler(handler) |> bun.port(0) |> bun.serve
+  let port = bun.get_port(server)
   use <- defer(cleanup: _, body: fn() { next(server, port) })
-  server.stop(server, force: False)
+  bun.stop(server, force: False)
 }
 
 pub fn to_local(port: Int, path: String) -> request.Request(String) {
@@ -41,6 +44,43 @@ pub fn loopback(
       }
     }
   })
+}
+
+pub fn request_ip(request: Request, server: Server(ctx)) {
+  let address = bun.request_ip(server, request)
+  case address {
+    option.None -> promise.resolve(bun.not_found())
+    option.Some(address) ->
+      address
+      |> encode_socket_address
+      |> bun.json_response
+      |> promise.resolve
+  }
+}
+
+pub fn encode_socket_address(address: bun.SocketAddress) {
+  json.object([
+    #("address", json.string(address.address)),
+    #("port", json.int(address.port)),
+    #("family", case address.family {
+      bun.IPv4 -> json.string("ipv4")
+      bun.IPv6 -> json.string("ipv6")
+    }),
+  ])
+}
+
+pub fn socket_address_decoder() {
+  use address <- decode.field("address", decode.string)
+  use port <- decode.field("port", decode.int)
+  use family <- decode.field("family", {
+    use family <- decode.then(decode.string)
+    case family {
+      "ipv4" -> decode.success(bun.IPv4)
+      "ipv6" -> decode.success(bun.IPv6)
+      _ -> decode.failure(bun.IPv4, "Family")
+    }
+  })
+  decode.success(bun.SocketAddress(address:, port:, family:))
 }
 
 @external(javascript, "./server.ffi.mjs", "log")

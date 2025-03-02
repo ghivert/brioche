@@ -332,7 +332,6 @@ pub fn timeout(
 pub fn request_ip(
   server: Server(context),
   request: Request,
-  timeout: Int,
 ) -> Option(SocketAddress)
 
 /// Upgrade a Request to a WebSocket connection handled by Bun. In case the
@@ -442,6 +441,11 @@ pub fn get_pending_websockets(server: Server(context)) -> Int
 
 @external(javascript, "./server.ffi.mjs", "getUrl")
 pub fn get_url(server: Server(context)) -> String
+
+pub fn ok() -> Response {
+  response.new(200)
+  |> response.set_body(Empty)
+}
 
 pub fn text_response(content: String) -> Response {
   response.new(200)

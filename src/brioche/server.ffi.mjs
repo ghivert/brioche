@@ -31,14 +31,14 @@ export function unref(server) {
 }
 
 export function timeout(server, request, timeout) {
-  server.timeout(request, timeout)
+  server.timeout(request.body, timeout)
   return request
 }
 
 export function requestIp(server, request) {
-  const ip = server.requestIP(request)
+  const ip = server.requestIP(request.body)
   if (!ip) return new $option.None()
-  const family = ip.family === 'IPv4' ? new $option.IPv4() : new $option.IPv6()
+  const family = ip.family === 'IPv4' ? new $server.IPv4() : new $server.IPv6()
   const socketAddress = new $server.SocketAddress(ip.address, ip.port, family)
   return new $option.Some(socketAddress)
 }

@@ -3,9 +3,14 @@ import brioche/file
 import brioche/server.{type Request} as bun
 import brioche/tls
 import brioche/websocket
+import gleam/bool
+import gleam/dynamic/decode
+import gleam/fetch
 import gleam/http
 import gleam/http/request
 import gleam/javascript/promise.{await}
+import gleam/result
+import gleeunit/should
 import utils/server.{loopback, to_local} as server_utils
 
 /// Modification of this test implies at least a minor upgrade when adding new
@@ -65,13 +70,31 @@ pub fn routed_response_test() {
   promise.resolve(Nil)
 }
 
-fn foo_bar(req: Request, _server: Server(ctx)) {
-  promise.resolve({
-    case req.method {
-      http.Get -> handle_get(req)
-      _ -> bun.text_response("Not get")
-    }
+pub fn request_ip_test() {
+  use _server, port <- server_utils.with_server(server_utils.request_ip)
+  use content <- promise.await({
+    to_local(port, "/")
+    |> fetch.send
+    |> promise.try_await(fetch.read_json_body)
   })
+  case content {
+    Error(_) -> should.fail()
+    Ok(res) -> {
+      res.body
+      |> decode.run(server_utils.socket_address_decoder())
+      |> result.map_error(fn(_) { should.fail() })
+      |> result.replace(Nil)
+      |> result.unwrap_both
+      Nil
+    }
+  }
+  promise.resolve(Nil)
+}
+
+fn foo_bar(req: Request, _server: Server(ctx)) {
+  let default = fn() { promise.resolve(bun.text_response("Not get")) }
+  use <- bool.lazy_guard(when: req.method != http.Get, return: default)
+  promise.resolve(handle_get(req))
 }
 
 fn handle_get(req: Request) {
