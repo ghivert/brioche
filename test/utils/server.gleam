@@ -4,7 +4,6 @@ import gleam/bool
 import gleam/fetch
 import gleam/http/request
 import gleam/int
-import gleam/io
 import gleam/javascript/promise.{type Promise}
 import gleeunit/should
 
@@ -18,15 +17,18 @@ pub fn with_server(
   server.stop(server, force: False)
 }
 
-pub fn request_text(
-  port port: Int,
-  path path: String,
-  status status: Int,
-  body body: String,
-) -> Promise(Nil) {
+pub fn to_local(port: Int, path: String) -> request.Request(String) {
   let port = int.to_string(port)
   let to = "http://localhost:" <> port <> path
   let assert Ok(request) = request.to(to)
+  request
+}
+
+pub fn loopback(
+  request: request.Request(String),
+  status status: Int,
+  body body: String,
+) -> Promise(Nil) {
   fetch.send(request)
   |> promise.try_await(fetch.read_text_body)
   |> promise.map(fn(res) {

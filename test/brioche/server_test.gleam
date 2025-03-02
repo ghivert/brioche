@@ -1,17 +1,12 @@
 import brioche.{type Server}
 import brioche/file
-import brioche/server.{type Request}
+import brioche/server.{type Request} as bun
 import brioche/tls
 import brioche/websocket
-import gleam/bool
-import gleam/fetch
+import gleam/http
 import gleam/http/request
-import gleam/http/response
-import gleam/int
-import gleam/io
 import gleam/javascript/promise.{await}
-import gleeunit/should
-import utils/server.{request_text} as server_utils
+import utils/server.{loopback, to_local} as server_utils
 
 /// Modification of this test implies at least a minor upgrade when adding new
 /// functions, and probably a breaking change and a major release when modifying
@@ -20,14 +15,14 @@ import utils/server.{request_text} as server_utils
 /// is essential, and while useless per se, that test acts as a way to take
 /// consciouness of a deep API modification.
 pub fn config_stability_test() {
-  server.handler(fn(_, _) { promise.resolve(server.text_response("")) })
-  |> server.port(3000)
-  |> server.hostname("localhost")
-  |> server.development(True)
-  |> server.static([#("/static", server.text_response("Static"))])
-  |> server.unix("/tpm/socket.sock")
-  |> server.idle_timeout(after: 30)
-  |> server.tls({
+  bun.handler(fn(_, _) { promise.resolve(bun.text_response("")) })
+  |> bun.port(3000)
+  |> bun.hostname("localhost")
+  |> bun.development(True)
+  |> bun.static([#("/static", bun.text_response("Static"))])
+  |> bun.unix("/tpm/socket.sock")
+  |> bun.idle_timeout(after: 30)
+  |> bun.tls({
     let key = tls.File(file.new("/example.key"))
     let cert = tls.File(file.new("/example.cert"))
     let ca = tls.File(file.new("/example.ca"))
@@ -39,7 +34,7 @@ pub fn config_stability_test() {
     |> tls.ca(ca)
     |> tls.dh_params_file("params")
   })
-  |> server.websocket({
+  |> bun.websocket({
     websocket.init()
     |> websocket.on_open(fn(_socket) { promise.resolve(Nil) })
     |> websocket.on_drain(fn(_socket) { promise.resolve(Nil) })
@@ -50,27 +45,39 @@ pub fn config_stability_test() {
 }
 
 pub fn simple_response_test() {
-  let ok = fn(_, _) { promise.resolve(server.text_response("OK")) }
+  let ok = fn(_, _) { promise.resolve(bun.text_response("OK")) }
   use _server, port <- server_utils.with_server(ok)
-  use _ <- await(request_text(port:, path: "/", status: 200, body: "OK"))
+  use _ <- await(to_local(port, "/") |> loopback(status: 200, body: "OK"))
   promise.resolve(Nil)
 }
 
 pub fn routed_response_test() {
   use _server, port <- server_utils.with_server(foo_bar)
-  use _ <- await(request_text(port:, path: "/foo", status: 200, body: "foo"))
-  use _ <- await(request_text(port:, path: "/bar", status: 200, body: "bar"))
-  use _ <- await(request_text(port:, path: "/", status: 404, body: ""))
-  use _ <- await(request_text(port:, path: "/any", status: 404, body: ""))
+  use _ <- await(to_local(port, "/foo") |> loopback(status: 200, body: "foo"))
+  use _ <- await(to_local(port, "/bar") |> loopback(status: 200, body: "bar"))
+  use _ <- await(to_local(port, "/") |> loopback(status: 404, body: ""))
+  use _ <- await(to_local(port, "/any") |> loopback(status: 404, body: ""))
+  use _ <- await({
+    to_local(port, "/")
+    |> request.set_method(http.Post)
+    |> loopback(status: 200, body: "Not get")
+  })
   promise.resolve(Nil)
 }
 
-fn foo_bar(req: Request, server: Server(ctx)) {
+fn foo_bar(req: Request, _server: Server(ctx)) {
   promise.resolve({
-    case server.path_segments(req) {
-      ["foo"] -> server.text_response("foo")
-      ["bar"] -> server.text_response("bar")
-      _ -> server.not_found()
+    case req.method {
+      http.Get -> handle_get(req)
+      _ -> bun.text_response("Not get")
     }
   })
+}
+
+fn handle_get(req: Request) {
+  case bun.path_segments(req) {
+    ["foo"] -> bun.text_response("foo")
+    ["bar"] -> bun.text_response("bar")
+    _ -> bun.not_found()
+  }
 }

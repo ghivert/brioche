@@ -103,7 +103,7 @@ function toHttpRequest(request) {
   const url = new URL(request.url)
   const port = parseInt(url.port)
   return new $request.Request(
-    request.method,
+    toHttpMethod(request.method),
     $gleam.toList([...request.headers]),
     request,
     url.protocol === 'http:' ? new $http.Http() : new $http.Https(),
@@ -112,6 +112,31 @@ function toHttpRequest(request) {
     url.pathname,
     url.search ? new $option.Some(url.search) : new $option.None()
   )
+}
+
+function toHttpMethod(method) {
+  switch (method) {
+    case 'GET':
+      return new $http.Get()
+    case 'POST':
+      return new $http.Post()
+    case 'HEAD':
+      return new $http.Head()
+    case 'PUT':
+      return new $http.Put()
+    case 'DELETE':
+      return new $http.Delete()
+    case 'TRACE':
+      return new $http.Trace()
+    case 'CONNECT':
+      return new $http.Connect()
+    case 'OPTIONS':
+      return new $http.Options()
+    case 'PATCH':
+      return new $http.Patch()
+    default:
+      return new $http.Other(method)
+  }
 }
 
 function generateResponse(res) {
