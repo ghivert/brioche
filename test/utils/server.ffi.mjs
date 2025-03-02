@@ -9,3 +9,7 @@ export async function defer(cleanup, body) {
     cleanup()
   }
 }
+
+export function coerce(a) {
+  return a
+}

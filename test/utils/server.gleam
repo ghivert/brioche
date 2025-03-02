@@ -58,6 +58,12 @@ pub fn request_ip(request: Request, server: Server(ctx)) {
   }
 }
 
+pub fn timeout(request: Request, server: Server(ctx)) {
+  bun.timeout(server, request, 1)
+  use _ <- promise.await(promise.wait(5000))
+  promise.resolve(bun.not_found())
+}
+
 pub fn encode_socket_address(address: bun.SocketAddress) {
   json.object([
     #("address", json.string(address.address)),
@@ -85,6 +91,9 @@ pub fn socket_address_decoder() {
 
 @external(javascript, "./server.ffi.mjs", "log")
 pub fn log(value: a) -> Nil
+
+@external(javascript, "./server.ffi.mjs", "coerce")
+pub fn coerce(a: a) -> b
 
 @external(javascript, "./server.ffi.mjs", "defer")
 fn defer(

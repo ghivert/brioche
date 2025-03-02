@@ -321,6 +321,21 @@ pub fn ref(server: Server(context)) -> Server(context)
 @external(javascript, "./server.ffi.mjs", "unref")
 pub fn unref(server: Server(context)) -> Server(context)
 
+/// Set a custom idle timeout for individual requests, or pass 0 to disable
+/// the timeout for a request. Timeout is indicated in seconds.
+///
+/// ```gleam
+/// import brioche.{type Server}
+/// import brioche/server.{type Request}
+///
+/// pub fn main() {
+///   server.handler(fn (request: Request, server: Server(ctx)) {
+///     server.timeout(server, request, 60)
+///     // Request will timeout after 60 seconds.
+///   })
+///   |> server.serve
+/// }
+/// ```
 @external(javascript, "./server.ffi.mjs", "timeout")
 pub fn timeout(
   server: Server(context),
@@ -328,6 +343,21 @@ pub fn timeout(
   timeout: Int,
 ) -> Request
 
+/// Get client IP and port information, returns `None` for closed requests or
+/// Unix domain sockets.
+///
+/// ```gleam
+/// import brioche.{type Server}
+/// import brioche/server.{type Request}
+///
+/// pub fn main() {
+///   server.handler(fn (request: Request, server: Server(ctx)) {
+///     let address = server.request_ip(server, request)
+///     // Use adress here.
+///   })
+///   |> server.serve
+/// }
+/// ```
 @external(javascript, "./server.ffi.mjs", "requestIp")
 pub fn request_ip(
   server: Server(context),

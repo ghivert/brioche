@@ -95,6 +95,15 @@ pub fn request_ip_test() {
   |> promise.map(fn(_) { Nil })
 }
 
+/// Request IP should respond with a correct `SocketAddress`.
+pub fn timeout_test() {
+  use _server, port <- server_utils.with_server(server_utils.timeout)
+  to_local(port, "/")
+  |> fetch.send
+  |> promise.tap(should.be_error)
+  |> promise.map(fn(_) { Nil })
+}
+
 fn foo_bar(req: Request, _server: Server(ctx)) {
   let default = fn() { promise.resolve(bun.text_response("Not get")) }
   use <- bool.lazy_guard(when: req.method != http.Get, return: default)
