@@ -49,6 +49,7 @@ pub fn config_stability_test() {
   })
 }
 
+/// Simple response should respond when provided a simple loopback.
 pub fn simple_response_test() {
   let ok = fn(_, _) { promise.resolve(bun.text_response("OK")) }
   use _server, port <- server_utils.with_server(ok)
@@ -56,6 +57,8 @@ pub fn simple_response_test() {
   promise.resolve(Nil)
 }
 
+/// Routed response uses a more complicated handler to check routing, correct
+/// method handling and path handling.
 pub fn routed_response_test() {
   use _server, port <- server_utils.with_server(foo_bar)
   use _ <- await(to_local(port, "/foo") |> loopback(status: 200, body: "foo"))
@@ -70,25 +73,26 @@ pub fn routed_response_test() {
   promise.resolve(Nil)
 }
 
+/// Request IP should respond with a correct `SocketAddress`.
 pub fn request_ip_test() {
   use _server, port <- server_utils.with_server(server_utils.request_ip)
-  use content <- promise.await({
-    to_local(port, "/")
-    |> fetch.send
-    |> promise.try_await(fetch.read_json_body)
-  })
-  case content {
-    Error(_) -> should.fail()
-    Ok(res) -> {
-      res.body
-      |> decode.run(server_utils.socket_address_decoder())
-      |> result.map_error(fn(_) { should.fail() })
-      |> result.replace(Nil)
-      |> result.unwrap_both
-      Nil
+  to_local(port, "/")
+  |> fetch.send
+  |> promise.try_await(fetch.read_json_body)
+  |> promise.tap(fn(content) {
+    case content {
+      Error(_) -> should.fail()
+      Ok(res) -> {
+        res.body
+        |> decode.run(server_utils.socket_address_decoder())
+        |> result.map_error(fn(_) { should.fail() })
+        |> result.replace(Nil)
+        |> result.unwrap_both
+        Nil
+      }
     }
-  }
-  promise.resolve(Nil)
+  })
+  |> promise.map(fn(_) { Nil })
 }
 
 fn foo_bar(req: Request, _server: Server(ctx)) {
