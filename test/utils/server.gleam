@@ -20,6 +20,16 @@ pub fn with_server(
   bun.stop(server, force: False)
 }
 
+pub fn with_custom_server(
+  config: bun.Config(ctx),
+  next: fn(Server(ctx), Int) -> Promise(Nil),
+) -> Promise(Nil) {
+  let server = bun.serve(config)
+  let port = bun.get_port(server)
+  use <- defer(cleanup: _, body: fn() { next(server, port) })
+  bun.stop(server, force: False)
+}
+
 pub fn to_local(port: Int, path: String) -> request.Request(String) {
   let port = int.to_string(port)
   let to = "http://localhost:" <> port <> path

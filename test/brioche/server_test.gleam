@@ -104,6 +104,7 @@ pub fn timeout_test() {
   |> promise.map(fn(_) { Nil })
 }
 
+/// Reload should correctly change the handler on the existing server.
 pub fn reload_test() {
   use server, port <- server_utils.with_server(foo_bar)
   use _ <- await(to_local(port, "/foo") |> loopback(status: 200, body: "foo"))
@@ -111,6 +112,18 @@ pub fn reload_test() {
   use _ <- await(promise.wait(200))
   use _ <- await(to_local(port, "/foo") |> loopback(status: 404, body: ""))
   use _ <- await(to_local(port, "/") |> loopback(status: 200, body: "reloaded"))
+  promise.resolve(Nil)
+}
+
+/// Static should return static routes.
+pub fn static_test() {
+  use _server, port <- server_utils.with_custom_server({
+    fn(_request, _server) { promise.resolve(bun.not_found()) }
+    |> bun.handler
+    |> bun.static([#("/foo", bun.text_response("foo"))])
+  })
+  use _ <- await(to_local(port, "/foo") |> loopback(status: 200, body: "foo"))
+  use _ <- await(to_local(port, "/") |> loopback(status: 404, body: ""))
   promise.resolve(Nil)
 }
 

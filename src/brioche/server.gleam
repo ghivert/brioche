@@ -54,16 +54,16 @@ pub const path_segments = request.path_segments
 /// in conjuction with `serve`.
 ///
 /// ```gleam
-/// import bun
-/// import bun/server.{type Request, type Response}
+/// import brioche
+/// import brioche/server.{type Request, type Response}
 /// import gleam/javascript/promise.{type Promise}
 ///
-/// pub fn main() -> bun.Server {
+/// pub fn main() -> brioche.Server {
 ///   server.handler(handler)
 ///   |> server.serve
 /// }
 ///
-/// fn handler(req: Request, server: bun.Server) -> Promise(Response) {
+/// fn handler(req: Request, server: brioche.Server) -> Promise(Response) {
 ///   server.text_response("OK")
 ///   |> promise.resolve
 /// }
@@ -89,11 +89,11 @@ pub fn handler(
 /// Be careful, setting port to `0` will select a port randomly.
 ///
 /// ```gleam
-/// import bun
-/// import bun/server.{type Request, type Response}
+/// import brioche
+/// import brioche/server.{type Request, type Response}
 /// import gleam/javascript/promise.{type Promise}
 ///
-/// pub fn main() -> bun.Server {
+/// pub fn main() -> brioche.Server {
 ///   server.handler(handler)
 ///   |> server.port(3000)
 ///   |> server.serve
@@ -108,10 +108,10 @@ pub fn port(options: Config(context), port: Int) -> Config(context) {
 /// to `0.0.0.0`.
 ///
 /// ```gleam
-/// import bun
-/// import bun/server
+/// import brioche
+/// import brioche/server
 ///
-/// pub fn main() -> bun.Server {
+/// pub fn main() -> brioche.Server {
 ///   server.handler(handler)
 ///   |> server.hostname("127.0.0.1")
 ///   |> server.serve
@@ -127,10 +127,10 @@ pub fn hostname(options: Config(context), hostname: String) -> Config(context) {
 /// code throws an error (i.e. panic in Gleam).
 ///
 /// ```gleam
-/// import bun
-/// import bun/server
+/// import brioche
+/// import brioche/server
 ///
-/// pub fn main() -> bun.Server {
+/// pub fn main() -> brioche.Server {
 ///   server.handler(handler)
 ///   |> server.development(True)
 ///   |> server.serve
@@ -149,10 +149,10 @@ pub fn development(
 /// handlers because instanciating `Request` or `AbortSignal` is not needed.
 ///
 /// ```gleam
-/// import bun
-/// import bun/server
+/// import brioche
+/// import brioche/server
 ///
-/// pub fn main() -> bun.Server {
+/// pub fn main() -> brioche.Server {
 ///   server.handler(handler)
 ///   |> server.static(static_routes())
 ///   |> server.serve
@@ -179,10 +179,10 @@ pub fn static(
 /// socket is closed.
 ///
 /// ```gleam
-/// import bun
-/// import bun/server
+/// import brioche
+/// import brioche/server
 ///
-/// pub fn main() -> bun.Server {
+/// pub fn main() -> brioche.Server {
 ///   server.handler(handler)
 ///   |> server.unix("/tmp/my-socket.sock") // Unix socket
 ///   |> server.unix("\0my-abstract-socket") // Abstract Unix socket
@@ -201,10 +201,10 @@ pub fn unix(options: Config(context), unix: String) -> Config(context) {
 /// Timeout is in seconds here.
 ///
 /// ```gleam
-/// import bun
-/// import bun/server
+/// import brioche
+/// import brioche/server
 ///
-/// pub fn main() -> bun.Server {
+/// pub fn main() -> brioche.Server {
 ///   server.handler(handler)
 ///   |> server.idle_timeout(10) // 10 seconds
 ///   |> server.serve
@@ -275,8 +275,8 @@ pub fn websocket(
 /// `unref` to modify that behaviour.
 ///
 /// ```gleam
-/// import bun.{type Server}
-/// import bun/server.{type Request}
+/// import brioche.{type Server}
+/// import brioche/server.{type Request}
 ///
 /// pub fn main() {
 ///   server.handler(handler)
@@ -295,7 +295,27 @@ pub fn serve(options: Config(context)) -> Server(context)
 
 /// Reload the webserver with new configuration. Bun will continue to serve
 /// pending requests with the existing configuration, and will switch new
-/// requests with the new configuration.
+/// requests with the new configuration. Passing new config for host or port
+/// will have no effect.
+///
+/// ```gleam
+/// import brioche/server
+///
+/// pub fn main() {
+///   let server =
+///     server.handler(handler)
+///     |> server.port(3000)
+///     |> server.hostname("0.0.0.0")
+///     |> server.serve
+///   // Reload the server with another handler.
+///   let server = server.reload(server, server.handler(handler))
+/// }
+///
+/// fn handler(request: Request, server: Server) {
+///   server.text_response("OK")
+///   |> promise.resolve
+/// }
+/// ```
 @external(javascript, "./server.ffi.mjs", "reload")
 pub fn reload(
   server: Server(context),
@@ -305,6 +325,24 @@ pub fn reload(
 /// Stop the server from accepting new connections. When forced to stop, Bun
 /// will immediately stop all pending connections, otherwise it let in-flight
 /// requests & WebSocket connections to complete.
+///
+/// ```gleam
+/// import brioche/server
+///
+/// pub fn main() {
+///   let server =
+///     server.handler(handler)
+///     |> server.port(3000)
+///     |> server.hostname("0.0.0.0")
+///     |> server.serve
+///   server.stop(server)
+/// }
+///
+/// fn handler(request: Request, server: Server) {
+///   server.text_response("OK")
+///   |> promise.resolve
+/// }
+/// ```
 @external(javascript, "./server.ffi.mjs", "stop")
 pub fn stop(server: Server(context), force force: Bool) -> Promise(Nil)
 
@@ -373,10 +411,10 @@ pub fn request_ip(
 /// import brioche/server.{type Request, type Server}
 /// import gleam/javascript/promise.{type Promise}
 ///
-/// // Context is the data sent during the WebSocket creation. After `upgrade`
-/// // calls, it's possible to set a context scoped to the newly created
-/// // WebSocket. Any data can be set, and it's up to you to choose what
-/// // data you want to put in the context.
+/// /// Context is the data sent during the WebSocket creation. After `upgrade`
+/// /// calls, it's possible to set a context scoped to the newly created
+/// /// WebSocket. Any data can be set, and it's up to you to choose what
+/// /// data you want to put in the context.
 /// pub type Context {
 ///   Context(
 ///     /// In this example, push a session_id in the context in order
@@ -449,7 +487,7 @@ pub fn publish_bytes(
 ) -> WebSocketSendStatus
 
 @external(javascript, "./server.ffi.mjs", "subscriberCount")
-pub fn subscriber_count(server: Server(context), topi: String) -> Int
+pub fn subscriber_count(server: Server(context), topic: String) -> Int
 
 @external(javascript, "./server.ffi.mjs", "getPort")
 pub fn get_port(server: Server(context)) -> Int
