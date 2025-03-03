@@ -68,7 +68,7 @@ pub fn routed_response_test() {
   use _ <- await({
     to_local(port, "/")
     |> request.set_method(http.Post)
-    |> loopback(status: 200, body: "Not get")
+    |> loopback(status: 200, body: "Nothing")
   })
   promise.resolve(Nil)
 }
@@ -104,16 +104,35 @@ pub fn timeout_test() {
   |> promise.map(fn(_) { Nil })
 }
 
-fn foo_bar(req: Request, _server: Server(ctx)) {
-  let default = fn() { promise.resolve(bun.text_response("Not get")) }
-  use <- bool.lazy_guard(when: req.method != http.Get, return: default)
-  promise.resolve(handle_get(req))
+pub fn reload_test() {
+  use server, port <- server_utils.with_server(foo_bar)
+  use _ <- await(to_local(port, "/foo") |> loopback(status: 200, body: "foo"))
+  let _server = bun.reload(server, bun.handler(reject_all))
+  use _ <- await(promise.wait(200))
+  use _ <- await(to_local(port, "/foo") |> loopback(status: 404, body: ""))
+  use _ <- await(to_local(port, "/") |> loopback(status: 200, body: "reloaded"))
+  promise.resolve(Nil)
 }
 
-fn handle_get(req: Request) {
-  case bun.path_segments(req) {
-    ["foo"] -> bun.text_response("foo")
-    ["bar"] -> bun.text_response("bar")
-    _ -> bun.not_found()
-  }
+fn foo_bar(req: Request, _server: Server(ctx)) {
+  let default = fn() { promise.resolve(bun.text_response("Nothing")) }
+  use <- bool.lazy_guard(when: req.method != http.Get, return: default)
+  promise.resolve({
+    case bun.path_segments(req) {
+      ["foo"] -> bun.text_response("foo")
+      ["bar"] -> bun.text_response("bar")
+      _ -> bun.not_found()
+    }
+  })
+}
+
+fn reject_all(req: Request, _server: Server(ctx)) {
+  let default = fn() { promise.resolve(bun.text_response("Nothing")) }
+  use <- bool.lazy_guard(when: req.method != http.Get, return: default)
+  promise.resolve({
+    case bun.path_segments(req) {
+      [] -> bun.text_response("reloaded")
+      _ -> bun.not_found()
+    }
+  })
 }

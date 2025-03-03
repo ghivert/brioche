@@ -8,6 +8,7 @@ import * as $option from '../../gleam_stdlib/gleam/option.mjs'
 export function coerce(a) {
   return a
 }
+
 export function serve(options) {
   const opts = convertOptions(options)
   const server = Bun.serve(opts)
