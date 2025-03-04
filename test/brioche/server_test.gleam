@@ -9,6 +9,7 @@ import gleam/fetch
 import gleam/http
 import gleam/http/request
 import gleam/javascript/promise.{await}
+import gleam/list
 import gleam/result
 import gleam/uri
 import gleeunit/should
@@ -142,6 +143,26 @@ pub fn static_test() {
   use _ <- await(to_local(port, "/foo") |> loopback(status: 200, body: "foo"))
   use _ <- await(to_local(port, "/") |> loopback(status: 404, body: ""))
   promise.resolve(Nil)
+}
+
+/// Non-regression test, make sure no handler is modified by mistake.
+pub fn handler_test() {
+  let handlers = [
+    #(bun.ok, 200),
+    #(bun.created, 201),
+    #(bun.accepted, 202),
+    #(fn() { bun.redirect("") }, 303),
+    #(fn() { bun.moved_permanently("") }, 308),
+    #(bun.no_content, 204),
+    #(bun.not_found, 404),
+    #(bun.bad_request, 400),
+    #(bun.entity_too_large, 413),
+    #(fn() { bun.unsupported_media_type([]) }, 415),
+    #(bun.unprocessable_entity, 422),
+    #(bun.internal_server_error, 500),
+  ]
+  use #(handler, status) <- list.each(handlers)
+  handler().status |> should.equal(status)
 }
 
 fn foo_bar(req: Request, _server: Server(ctx)) {
