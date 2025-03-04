@@ -8,7 +8,6 @@ import gleam/dynamic/decode
 import gleam/fetch
 import gleam/http
 import gleam/http/request
-import gleam/io
 import gleam/javascript/promise.{await}
 import gleam/list
 import gleam/result
@@ -163,8 +162,15 @@ pub fn handler_test() {
     #(bun.unprocessable_entity, 422),
     #(bun.internal_server_error, 500),
   ]
+  let loc = [#("location", "brioche")]
+  bun.redirect("brioche").headers |> should.equal(loc)
+  bun.moved_permanently("brioche").headers |> should.equal(loc)
+  bun.unsupported_media_type(["md", "txt"]).headers
+  |> should.equal([#("accept", "md, txt")])
   use #(handler, status) <- list.each(handlers)
-  handler().status |> should.equal(status)
+  let response = handler()
+  response.status |> should.equal(status)
+  response.body |> should.equal(bun.Empty)
 }
 
 /// Non-regression test, make sure `escape_html` is not modified by mistake.
