@@ -10,6 +10,7 @@ import gleam/http
 import gleam/http/request
 import gleam/javascript/promise.{await}
 import gleam/result
+import gleam/uri
 import gleeunit/should
 import utils/server.{loopback, to_local} as server_utils
 
@@ -47,6 +48,22 @@ pub fn config_stability_test() {
     |> websocket.on_text(fn(_socket, _text) { promise.resolve(Nil) })
     |> websocket.on_bytes(fn(_socket, _bytes) { promise.resolve(Nil) })
   })
+}
+
+/// Test basic getters for server.
+pub fn server_getters_test() {
+  let ok = fn(_, _) { promise.resolve(bun.text_response("OK")) }
+  let server = bun.handler(ok) |> bun.port(1234) |> bun.serve
+  use <- server_utils.defer(cleanup: fn() { bun.stop(server, force: False) })
+  bun.get_port(server) |> should.equal(1234)
+  bun.get_development(server) |> should.equal(True)
+  bun.get_hostname(server) |> should.equal("localhost")
+  bun.get_id(server) |> should.equal("")
+  bun.get_pending_requests(server) |> should.equal(0)
+  bun.get_pending_websockets(server) |> should.equal(0)
+  let assert Ok(uri) = uri.parse("http://localhost:1234/")
+  bun.get_uri(server) |> should.equal(uri)
+  promise.resolve(Nil)
 }
 
 /// Simple response should respond when provided a simple loopback.

@@ -63,7 +63,7 @@ pub fn request_ip(request: Request, server: Server(ctx)) {
     option.Some(address) ->
       address
       |> encode_socket_address
-      |> bun.json_response
+      |> bun.json_response(200)
       |> promise.resolve
   }
 }
@@ -76,11 +76,11 @@ pub fn timeout(request: Request, server: Server(ctx)) {
 
 pub fn encode_socket_address(address: bun.SocketAddress) {
   json.object([
-    #("address", json.string(address.address)),
     #("port", json.int(address.port)),
-    #("family", case address.family {
-      bun.IPv4 -> json.string("ipv4")
-      bun.IPv6 -> json.string("ipv6")
+    #("address", json.string(address.address.ip)),
+    #("family", case address.address {
+      bun.IPv4(..) -> json.string("ipv4")
+      bun.IPv6(..) -> json.string("ipv6")
     }),
   ])
 }
@@ -88,15 +88,15 @@ pub fn encode_socket_address(address: bun.SocketAddress) {
 pub fn socket_address_decoder() {
   use address <- decode.field("address", decode.string)
   use port <- decode.field("port", decode.int)
-  use family <- decode.field("family", {
+  use address <- decode.field("family", {
     use family <- decode.then(decode.string)
     case family {
-      "ipv4" -> decode.success(bun.IPv4)
-      "ipv6" -> decode.success(bun.IPv6)
-      _ -> decode.failure(bun.IPv4, "Family")
+      "ipv4" -> decode.success(bun.IPv4(address))
+      "ipv6" -> decode.success(bun.IPv6(address))
+      _ -> decode.failure(bun.IPv4(""), "Family")
     }
   })
-  decode.success(bun.SocketAddress(address:, port:, family:))
+  decode.success(bun.SocketAddress(port:, address:))
 }
 
 @external(javascript, "./server.ffi.mjs", "log")
@@ -106,7 +106,7 @@ pub fn log(value: a) -> Nil
 pub fn coerce(a: a) -> b
 
 @external(javascript, "./server.ffi.mjs", "defer")
-fn defer(
+pub fn defer(
   cleanup cleanup: fn() -> a,
   body body: fn() -> Promise(b),
 ) -> Promise(b)

@@ -1,25 +1,78 @@
 import brioche.{type Server}
 import brioche/tls
 import brioche/websocket.{type WebSocketSendStatus}
+import gleam/bytes_tree.{type BytesTree}
+import gleam/http
 import gleam/http/request
 import gleam/http/response
 import gleam/javascript/promise.{type Promise}
 import gleam/json.{type Json}
+import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/string
+import gleam/string_tree.{type StringTree}
+import gleam/uri
 
+/// Incoming request received by a server. `brioche` converts every incoming
+/// request to Gleam `Request`, and takes care of everything.
+/// `Request` still exposes the real JavaScript
+/// [`Request`](https://developer.mozilla.org/docs/Web/API/Request)
+/// in its body in case interoperability is needed with JavaScript or TypeScript.
 pub type Request =
-  request.Request(Body)
+  request.Request(IncomingMessage)
 
+/// Outgoing response sent by the server in response to an incoming request, or
+/// as a static response. Gleam `Response` are not identical to JavaScript
+/// `Response`, and `brioche` takes care of the conversion between the two.
 pub type Response =
   response.Response(Body)
 
-pub opaque type Body {
+/// Incoming message received by a server. Under-the-hood, `IntomingMessage`
+/// is the real JavaScript `Request` object. Due to its nature, it cannot be
+/// used as-is in Gleam. `IncomingMessage` should always be managed directly
+/// with the appropriate functions to stay type-safe all along.
+pub type IncomingMessage
+
+/// Body of outgoing response, which can be text, JSON, bit array or empty.
+/// Be careful, setting a response body manually will not set appropriate
+/// headers. [`json_response`](#json_response) or
+/// [`bit_array_response`](#bit_array_response) should always be privileged
+/// instead in order to automatically set the appropriate headers when
+/// needed (`content-type`, etc.).
+pub type Body {
+  /// Any String text. Used when returning anything else than JSON or bit array
+  /// is needed, like HTML or encoded data. Correct `content-type` should always
+  /// be set in the response header accordingly.
   Text(text: String)
+  /// JSON content exclusively. Any JSON can be sent in `Text`, but JSON field
+  /// provides type safety to guarantee JSON is sent, and not anything else.
+  /// `content-type: application/json` header is automatically used when using
+  /// JSON functions, and should not be overriden. However, it is always
+  /// possible to change it (when defining a custom protocol, for example).
   Json(json: Json)
+  /// Bit Array content. Used to transfer raw data, like pictures or any
+  /// binary encoded data. Setting the `content-type` header to
+  /// `application/octet-stream` is most of the time appropriate, but it's also
+  /// possible to set it to something that suits the content, like the
+  /// [mime type](https://developer.mozilla.org/docs/Web/HTTP/MIME_types/Common_types)
+  /// of the blob being sent.
   Bytes(bytes: BitArray)
+  /// Empty body. Used when generating a simple response, like [`ok`](#ok).
   Empty
 }
 
+/// Config used to setup a Bun's server. Config is opaque, and is created by
+/// using [`server.handler`](#handler). Every server must have a handler (even
+/// if a simple default "OK"), and can have a bun of options:
+/// - [`development`](#development), to set the development mode. Defaults to `True`.
+/// - [`hostname`](#hostname), to set the hostname to listen to. Defaults to `"0.0.0.0"`.
+/// - [`idle_timeout`](#idle_timeout), to set the default timeout for a request.
+///   Defaults to `10`.
+/// - [`port`](#port), to set the port to listen to. Defaults to `3000`.
+/// - [`static_routes`](#static_routes), to define default static routes.
+/// - [`tls`](#tls), to define HTTPS options.
+/// - [`unix`](#unix), to listen to a Unix socket instead of HTTP.
+/// - [`websocket`](#websocket), to handle WebSockets connections.
 pub opaque type Config(context) {
   Config(
     development: Bool,
@@ -35,14 +88,38 @@ pub opaque type Config(context) {
 }
 
 pub type IP {
-  IPv4
-  IPv6
+  /// Address with shape `www.xxx.yyy.zzz`.
+  IPv4(ip: String)
+  /// Address with shape `xxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx`.
+  IPv6(ip: String)
 }
 
+/// Define an address for a Socket.
 pub type SocketAddress {
-  SocketAddress(address: String, port: Int, family: IP)
+  SocketAddress(
+    /// Port, in integer format.
+    port: Int,
+    /// IP address, in corresponding format.
+    address: IP,
+  )
 }
 
+/// Read path segments as a `List(String)`. Used in simple routing.
+///
+/// ```gleam
+/// /// Simple router matching routes `/`, `/example` & `/example/:id`. All
+/// /// other routes returns a 404 Not Found.
+/// fn main() {
+///   server.handler(fn (request, _server) {
+///     case server.path_segments(request) {
+///       [] -> server.text_response("Root")
+///       ["example"] -> server.text_response("Example")
+///       ["example", example_id] -> server.text_response("Example ID")
+///       _ -> server.not_found()
+///     }
+///   })
+/// }
+/// ```
 pub const path_segments = request.path_segments
 
 /// Every webserver is defined by a handler, that accepts incoming requests
@@ -124,7 +201,8 @@ pub fn hostname(options: Config(context), hostname: String) -> Config(context) {
 
 /// Activate or deactivate development mode in Bun. Activating development mode
 /// enables a special mode in browser, displaying enriched error messages when
-/// code throws an error (i.e. panic in Gleam).
+/// code throws an error (i.e. panic in Gleam). Defaults to `True`. Should be
+/// set to `False` in production to avoid leaking important information.
 ///
 /// ```gleam
 /// import brioche
@@ -170,9 +248,9 @@ pub fn static(
   Config(..options, static_routes:)
 }
 
-/// Provide the path to your socket to listen on a Unix socket directly. Bun
+/// Provide the path to a socket to listen on a Unix socket directly. Bun
 /// supports Unix domain sockets as well as abstract namespaces sockets. In that
-/// case, prefix your socket path with a null byte.
+/// case, prefix the socket path with a null byte.
 ///
 /// Unlike unix domain sockets, abstract namespace sockets are not bound to the
 /// filesystem and are automatically removed when the last reference to the
@@ -348,14 +426,14 @@ pub fn stop(server: Server(context), force force: Bool) -> Promise(Nil)
 
 /// Count server as running to determine if process should be kept
 /// alive or not. Restore the default behaviour of servers.
-/// Returns the same server to allow you chaining calls if needed.
-/// To disable that behaviour, use `unref`.
+/// Returns the same server to allow chaining calls if needed.
+/// `unref` can be used to disable that behaviour.
 @external(javascript, "./server.ffi.mjs", "ref")
 pub fn ref(server: Server(context)) -> Server(context)
 
 /// Stop counting server as running to determine if process should be kept
-/// alive or not. Returns the same server to allow you chaining calls if needed.
-/// To restore the old behaviour, use `ref`.
+/// alive or not. Returns the same server to allow chaining calls if needed.
+/// `ref` restore the old behaviour.
 @external(javascript, "./server.ffi.mjs", "unref")
 pub fn unref(server: Server(context)) -> Server(context)
 
@@ -402,6 +480,7 @@ pub fn request_ip(
   request: Request,
 ) -> Option(SocketAddress)
 
+/// TODO
 /// Upgrade a Request to a WebSocket connection handled by Bun. In case the
 /// upgrading could not be achieved, continue the execution. If the upgrade is
 /// successful, `upgrade` will automatically return, and shortcut execution.
@@ -457,7 +536,7 @@ pub fn upgrade(
   next: fn() -> Promise(Response),
 ) -> Promise(Response) {
   case do_upgrade(server, request, headers, context) {
-    // Connection has been upgraded, don't return anything.
+    // Connection has been upgraded, return undefined.
     True -> coerce(Nil)
     // Connection has not been upgraded, continue with the following execution.
     False -> next()
@@ -472,6 +551,7 @@ fn do_upgrade(
   context: context,
 ) -> Bool
 
+/// TODO
 @external(javascript, "./server.ffi.mjs", "publish")
 pub fn publish(
   server: Server(context),
@@ -479,6 +559,7 @@ pub fn publish(
   data: String,
 ) -> WebSocketSendStatus
 
+/// TODO
 @external(javascript, "./server.ffi.mjs", "publish")
 pub fn publish_bytes(
   server: Server(context),
@@ -486,76 +567,412 @@ pub fn publish_bytes(
   data: BitArray,
 ) -> WebSocketSendStatus
 
+/// TODO
 @external(javascript, "./server.ffi.mjs", "subscriberCount")
 pub fn subscriber_count(server: Server(context), topic: String) -> Int
 
+/// Get the current port the server is listening on.
+///
+/// ```gleam
+/// let server = server.handler(handler) |> server.port(0) |> server.serve
+/// let port = server.get_port(server)
+/// /// port is the defined port by the server.
+/// ```
 @external(javascript, "./server.ffi.mjs", "getPort")
 pub fn get_port(server: Server(context)) -> Int
 
+/// Get the current development mode. `True` if the server runs in development
+/// mode, `False` otherwise.
+///
+/// ```gleam
+/// let server = server.handler(handler) |> server.serve
+/// let is_dev = server.get_development(server)
+/// /// is_dev == True
+/// ```
 @external(javascript, "./server.ffi.mjs", "getDevelopment")
 pub fn get_development(server: Server(context)) -> Bool
 
+/// Get the hostname the server is listening to.
+///
+/// ```gleam
+/// let server = server.handler(handler) |> server.serve
+/// let hostname = server.get_hostname(server)
+/// /// hostname == "0.0.0.0"
+/// ```
 @external(javascript, "./server.ffi.mjs", "getHostname")
 pub fn get_hostname(server: Server(context)) -> String
 
+/// Get the server instance identifier.
+///
+/// ```gleam
+/// let server = server.handler(handler) |> server.serve
+/// let id: String = server.get_id(server)
+/// ```
 @external(javascript, "./server.ffi.mjs", "getId")
 pub fn get_id(server: Server(context)) -> String
 
+/// Get the current pending requests the server is handling when called.
+///
+/// ```gleam
+/// let server = server.handler(handler) |> server.serve
+/// let requests = server.get_pending_requests(server)
+/// // requests == 0
+/// ```
 @external(javascript, "./server.ffi.mjs", "getPendingRequests")
-pub fn get_pending_request(server: Server(context)) -> Int
+pub fn get_pending_requests(server: Server(context)) -> Int
 
+/// Get the current pending opened WebSockets the server is maintaining when called.
+///
+/// ```gleam
+/// let server = server.handler(handler) |> server.serve
+/// let websockets = server.get_pending_websockets(server)
+/// // websockets == 0
+/// ```
 @external(javascript, "./server.ffi.mjs", "getPendingWebsockets")
 pub fn get_pending_websockets(server: Server(context)) -> Int
 
 @external(javascript, "./server.ffi.mjs", "getUrl")
-pub fn get_url(server: Server(context)) -> String
+fn do_get_url(server: Server(context)) -> String
 
-pub fn ok() -> Response {
-  response.new(200)
+/// Get the current URI of the server. Gleam counterpart of `server.url`.
+///
+/// ```gleam
+/// let server = server.handler(handler) |> server.serve
+/// let uri = server.get_uri(server)
+/// // uri == uri.Uri
+/// ```
+pub fn get_uri(server: Server(context)) -> uri.Uri {
+  let uri = do_get_url(server)
+  let assert Ok(uri) = uri.parse(uri)
+  uri
+}
+
+pub fn response(status: Int) -> Response {
+  response.new(status)
   |> response.set_body(Empty)
 }
 
+pub fn ok() -> Response {
+  response.Response(200, [], Empty)
+}
+
 pub fn text_response(content: String) -> Response {
-  response.new(200)
-  |> response.set_body(Text(content))
+  response.Response(200, [], Text(content))
 }
 
-pub fn json_response(content: Json) -> Response {
-  response.new(200)
-  |> response.set_body(Json(content))
-  |> response.set_header("content-type", "application/json")
+pub fn json_response(content: Json, status: Int) -> Response {
+  let content = Json(content)
+  let headers = [#("content-type", "text/html; charset=utf-8")]
+  response.Response(status, headers, content)
 }
 
-pub fn bytes_response(content: BitArray) {
-  response.new(200)
+pub fn bytes_response(content: BitArray) -> Response {
+  let content = Bytes(content)
+  let headers = [#("content-type", "application/octet-stream")]
+  response.Response(200, headers, content)
+}
+
+pub fn bytes_body(response: Response, content: BitArray) -> Response {
+  response
   |> response.set_body(Bytes(content))
   |> response.set_header("content-type", "application/octet-stream")
 }
 
+pub fn bytes_tree_response(content: BytesTree) -> Response {
+  let content = Bytes(bytes_tree.to_bit_array(content))
+  let headers = [#("content-type", "application/octet-stream")]
+  response.Response(200, headers, content)
+}
+
+pub fn bytes_tree_body(response: Response, content: BytesTree) -> Response {
+  response
+  |> response.set_body(Bytes(bytes_tree.to_bit_array(content)))
+  |> response.set_header("content-type", "application/octet-stream")
+}
+
+/// Set the body of a response to a given HTML document, and set the
+/// `content-type` header to `text/html`.
+///
+/// The body is expected to be valid HTML, though this is not validated.
+///
+/// # Examples
+///
+/// ```gleam
+/// let body = string_tree.from_string("<h1>Hello, Joe!</h1>")
+/// response(201)
+/// |> html_body(body)
+/// // -> Response(201, [#("content-type", "text/html; charset=utf-8")], Text(body))
+/// ```
+///
+pub fn html_body(response: Response, html: String) -> Response {
+  response
+  |> response.set_body(Text(html))
+  |> response.set_header("content-type", "text/html; charset=utf-8")
+}
+
+/// Set the body of a response to a given JSON document, and set the
+/// `content-type` header to `application/json`.
+///
+/// The body is expected to be valid JSON, though this is not validated.
+///
+/// # Examples
+///
+/// ```gleam
+/// let body = string_tree.from_string("{\"name\": \"Joe\"}")
+/// response(201)
+/// |> json_body(body)
+/// // -> Response(201, [#("content-type", "application/json; charset=utf-8")], Text(body))
+/// ```
+///
+pub fn json_body(response: Response, json: Json) -> Response {
+  response
+  |> response.set_body(Json(json))
+  |> response.set_header("content-type", "application/json; charset=utf-8")
+}
+
+/// Set the body of a response to a given string tree.
+///
+/// You likely want to also set the request `content-type` header to an
+/// appropriate value for the format of the content.
+///
+/// # Examples
+///
+/// ```gleam
+/// let body = string_tree.from_string("Hello, Joe!")
+/// response(201)
+/// |> string_tree_body(body)
+/// // -> Response(201, [], Text(body))
+/// ```
+///
+pub fn string_tree_body(response: Response, content: StringTree) -> Response {
+  response
+  |> response.set_body(Text(string_tree.to_string(content)))
+}
+
+/// Set the body of a response to a given string.
+///
+/// You likely want to also set the request `content-type` header to an
+/// appropriate value for the format of the content.
+///
+/// # Examples
+///
+/// ```gleam
+/// let body =
+/// response(201)
+/// |> string_body("Hello, Joe!")
+/// // -> Response(
+/// //   201,
+/// //   [],
+/// //   Text(string_tree.from_string("Hello, Joe"))
+/// // )
+/// ```
+///
+pub fn text_body(response: Response, content: String) -> Response {
+  response
+  |> response.set_body(Text(content))
+}
+
+/// TODO
+pub fn escape_html(content: String) -> String {
+  content
+}
+
+/// Create an empty response with status code 405: Method Not Allowed. Use this
+/// when a request does not have an appropriate method to be handled.
+///
+/// The `allow` header will be set to a comma separated list of the permitted
+/// methods.
+///
+/// # Examples
+///
+/// ```gleam
+/// method_not_allowed(allowed: [Get, Post])
+/// // -> Response(405, [#("allow", "GET, POST")], Empty)
+/// ```
+///
+pub fn method_not_allowed(allowed methods: List(http.Method)) -> Response {
+  let allowed =
+    methods
+    |> list.map(http.method_to_string)
+    |> list.sort(string.compare)
+    |> string.join(", ")
+    |> string.uppercase
+  response.Response(405, [#("allow", allowed)], Empty)
+}
+
+/// Create an empty response with status code 201: Created.
+///
+/// # Examples
+///
+/// ```gleam
+/// created()
+/// // -> Response(201, [], Empty)
+/// ```
+///
+pub fn created() -> Response {
+  response.Response(201, [], Empty)
+}
+
+/// Create an empty response with status code 202: Accepted.
+///
+/// # Examples
+///
+/// ```gleam
+/// accepted()
+/// // -> Response(202, [], Empty)
+/// ```
+///
+pub fn accepted() -> Response {
+  response.Response(202, [], Empty)
+}
+
+/// Create an empty response with status code 303: See Other, and the `location`
+/// header set to the given URL. Used to redirect the client to another page.
+///
+/// # Examples
+///
+/// ```gleam
+/// redirect(to: "https://example.com")
+/// // -> Response(303, [#("location", "https://example.com")], Empty)
+/// ```
+///
+pub fn redirect(to url: String) -> Response {
+  response.Response(303, [#("location", url)], Empty)
+}
+
+/// Create an empty response with status code 308: Moved Permanently, and the
+/// `location` header set to the given URL. Used to redirect the client to
+/// another page.
+///
+/// This redirect is permanent and the client is expected to cache the new
+/// location, using it for future requests.
+///
+/// # Examples
+///
+/// ```gleam
+/// moved_permanently(to: "https://example.com")
+/// // -> Response(308, [#("location", "https://example.com")], Empty)
+/// ```
+///
+pub fn moved_permanently(to url: String) -> Response {
+  response.Response(308, [#("location", url)], Empty)
+}
+
+/// Create an empty response with status code 204: No content.
+///
+/// # Examples
+///
+/// ```gleam
+/// no_content()
+/// // -> Response(204, [], Empty)
+/// ```
+///
+pub fn no_content() -> Response {
+  response.Response(204, [], Empty)
+}
+
+/// Create an empty response with status code 404: No content.
+///
+/// # Examples
+///
+/// ```gleam
+/// not_found()
+/// // -> Response(404, [], Empty)
+/// ```
+///
 pub fn not_found() -> Response {
-  response.new(404)
-  |> response.set_body(Empty)
+  response.Response(404, [], Empty)
 }
 
-pub fn internal_error() -> Response {
-  response.new(500)
-  |> response.set_body(Empty)
+/// Create an empty response with status code 400: Bad request.
+///
+/// # Examples
+///
+/// ```gleam
+/// bad_request()
+/// // -> Response(400, [], Empty)
+/// ```
+///
+pub fn bad_request() -> Response {
+  response.Response(400, [], Empty)
 }
 
-pub fn text_body(response: Response, content: String) {
-  response.set_body(response, Text(content))
+/// Create an empty response with status code 413: Entity too large.
+///
+/// # Examples
+///
+/// ```gleam
+/// entity_too_large()
+/// // -> Response(413, [], Empty)
+/// ```
+///
+pub fn entity_too_large() -> Response {
+  response.Response(413, [], Empty)
 }
 
-pub fn json_body(response: Response, content: Json) {
-  response.set_body(response, Json(content))
+/// Create an empty response with status code 415: Unsupported media type.
+///
+/// The `allow` header will be set to a comma separated list of the permitted
+/// content-types.
+///
+/// # Examples
+///
+/// ```gleam
+/// unsupported_media_type(accept: ["application/json", "text/plain"])
+/// // -> Response(415, [#("allow", "application/json, text/plain")], Empty)
+/// ```
+///
+pub fn unsupported_media_type(accept acceptable: List(String)) -> Response {
+  let acceptable = string.join(acceptable, ", ")
+  response.Response(415, [#("accept", acceptable)], Empty)
 }
 
-pub fn bytes_body(response: Response, content: BitArray) {
-  response.set_body(response, Bytes(content))
+/// Create an empty response with status code 422: Unprocessable entity.
+///
+/// # Examples
+///
+/// ```gleam
+/// unprocessable_entity()
+/// // -> Response(422, [], Empty)
+/// ```
+///
+pub fn unprocessable_entity() -> Response {
+  response.Response(422, [], Empty)
 }
 
-pub fn empty_body(response: Response) {
-  response.set_body(response, Empty)
+/// Create an empty response with status code 500: Internal server error.
+///
+/// # Examples
+///
+/// ```gleam
+/// internal_server_error()
+/// // -> Response(500, [], Empty)
+/// ```
+///
+pub fn internal_server_error() -> Response {
+  response.Response(500, [], Empty)
+}
+
+pub fn set_body(response: Response, body: Body) {
+  response.set_body(response, body)
+}
+
+/// Create a HTML response.
+///
+/// The body is expected to be valid HTML, though this is not validated.
+/// The `content-type` header will be set to `text/html`.
+///
+/// # Examples
+///
+/// ```gleam
+/// let body = string_tree.from_string("<h1>Hello, Joe!</h1>")
+/// html_response(body, 200)
+/// // -> Response(200, [#("content-type", "text/html")], Text(body))
+/// ```
+///
+pub fn html_response(html: String, status: Int) -> Response {
+  let headers = [#("content-type", "text/html; charset=utf-8")]
+  response.Response(status, headers, Text(html))
 }
 
 @external(javascript, "./server.ffi.mjs", "coerce")

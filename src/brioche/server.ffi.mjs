@@ -39,8 +39,11 @@ export function timeout(server, request, timeout) {
 export function requestIp(server, request) {
   const ip = server.requestIP(request.body)
   if (!ip) return new $option.None()
-  const family = ip.family === 'IPv4' ? new $server.IPv4() : new $server.IPv6()
-  const socketAddress = new $server.SocketAddress(ip.address, ip.port, family)
+  const address =
+    ip.family === 'IPv4'
+      ? new $server.IPv4(ip.address)
+      : new $server.IPv6(ip.address)
+  const socketAddress = new $server.SocketAddress(ip.port, address)
   return new $option.Some(socketAddress)
 }
 
@@ -65,7 +68,7 @@ export const getDevelopment = server => server.development
 export const getHostname = server => server.hostname
 export const getId = server => server.id
 export const getPendingRequests = server => server.pendingRequests
-export const getPendingWebsockets = server => server.pendingWebsockets
+export const getPendingWebsockets = server => server.pendingWebSockets
 export const getUrl = server => server.url.toString()
 export const subscriberCount = (server, topic) => server.subscriberCount(topic)
 export const data = ws => ws.data
