@@ -57,6 +57,9 @@ pub type Body {
   /// [mime type](https://developer.mozilla.org/docs/Web/HTTP/MIME_types/Common_types)
   /// of the blob being sent.
   Bytes(bytes: BitArray)
+  /// Bun File. Lazy loaded file will be automatically read by the runtime, and
+  /// sent to the user as the response, with the correct mime type and content.
+  File(file: brioche.File)
   /// Empty body. Used when generating a simple response, like [`ok`](#ok).
   Empty
 }
@@ -666,6 +669,11 @@ pub fn json_response(content: Json, status: Int) -> Response {
   response.Response(status, headers, content)
 }
 
+pub fn file_response(file: brioche.File, status: Int) -> Response {
+  let content = File(file)
+  response.Response(status, [], content)
+}
+
 pub fn bytes_response(content: BitArray) -> Response {
   let content = Bytes(content)
   let headers = [#("content-type", "application/octet-stream")]
@@ -676,6 +684,11 @@ pub fn bytes_body(response: Response, content: BitArray) -> Response {
   response
   |> response.set_body(Bytes(content))
   |> response.set_header("content-type", "application/octet-stream")
+}
+
+pub fn file_body(response: Response, file: brioche.File) -> Response {
+  response
+  |> response.set_body(File(file))
 }
 
 pub fn bytes_tree_response(content: BytesTree) -> Response {

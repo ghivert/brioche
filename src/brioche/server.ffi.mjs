@@ -155,6 +155,7 @@ function generateResponse(res) {
   if ('text' in res.body) return new Response(res.body.text, options)
   if ('json' in res.body) return Response.json(res.body.json, options)
   if ('bytes' in res.body) return new Response(res.body.bytes, options)
+  if ('file' in res.body) return new Response(res.body.file, options)
   return new Response(null, options)
 }
 

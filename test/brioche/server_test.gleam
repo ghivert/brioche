@@ -9,7 +9,9 @@ import gleam/fetch
 import gleam/http
 import gleam/http/request
 import gleam/javascript/promise.{await}
+import gleam/json
 import gleam/list
+import gleam/option
 import gleam/result
 import gleam/uri
 import gleeunit/should
@@ -144,6 +146,28 @@ pub fn static_test() {
   use _ <- await(to_local(port, "/foo") |> loopback(status: 200, body: "foo"))
   use _ <- await(to_local(port, "/") |> loopback(status: 404, body: ""))
   promise.resolve(Nil)
+}
+
+/// Bun File should be handled correctly.
+pub fn file_test() {
+  let path = "/tmp/brioche_test.json"
+  use _server, port <- server_utils.with_server(fn(_request, _server) {
+    let content = json.to_string(json.object([#("example", json.null())]))
+    use _ <- await(file.write_text(file.new(path), content))
+    promise.resolve(bun.file_response(file.new(path), 200))
+  })
+  to_local(port, "/")
+  |> fetch.send
+  |> promise.try_await(fetch.read_json_body)
+  |> promise.map(should.be_ok)
+  |> promise.tap(fn(content) {
+    decode.at(["example"], decode.optional(decode.int))
+    |> decode.run(content.body, _)
+    |> should.be_ok
+    |> should.equal(option.None)
+  })
+  |> promise.await(fn(_) { file.delete(file.new(path)) })
+  |> promise.map(fn(_) { Nil })
 }
 
 /// Non-regression test, make sure no handler is modified by mistake.
