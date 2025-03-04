@@ -772,10 +772,8 @@ pub fn text_body(response: Response, content: String) -> Response {
   |> response.set_body(Text(content))
 }
 
-/// TODO
-pub fn escape_html(content: String) -> String {
-  content
-}
+@external(javascript, "./server.ffi.mjs", "escapeHTML")
+pub fn escape_html(content: String) -> String
 
 /// Create an empty response with status code 405: Method Not Allowed. Use this
 /// when a request does not have an appropriate method to be handled.

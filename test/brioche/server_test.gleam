@@ -8,6 +8,7 @@ import gleam/dynamic/decode
 import gleam/fetch
 import gleam/http
 import gleam/http/request
+import gleam/io
 import gleam/javascript/promise.{await}
 import gleam/list
 import gleam/result
@@ -92,6 +93,7 @@ pub fn routed_response_test() {
 }
 
 /// Request IP should respond with a correct `SocketAddress`.
+/// Also test JSON response, as JSON is sent to encode `SocketAddress`.
 pub fn request_ip_test() {
   use _server, port <- server_utils.with_server(server_utils.request_ip)
   to_local(port, "/")
@@ -163,6 +165,16 @@ pub fn handler_test() {
   ]
   use #(handler, status) <- list.each(handlers)
   handler().status |> should.equal(status)
+}
+
+/// Non-regression test, make sure `escape_html` is not modified by mistake.
+pub fn escape_html_test() {
+  let input = "<html><head><title>Chou & Corp.</title></head></html>"
+  let output =
+    "&lt;html&gt;&lt;head&gt;&lt;title&gt;Chou &amp; Corp.&lt;/title&gt;&lt;/head&gt;&lt;/html&gt;"
+  input
+  |> bun.escape_html
+  |> should.equal(output)
 }
 
 fn foo_bar(req: Request, _server: Server(ctx)) {

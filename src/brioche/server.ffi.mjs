@@ -9,6 +9,10 @@ export function coerce(a) {
   return a
 }
 
+export function escapeHTML(content) {
+  return Bun.escapeHTML(content)
+}
+
 export function serve(options) {
   const opts = convertOptions(options)
   const server = Bun.serve(opts)
