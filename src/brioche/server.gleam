@@ -1,4 +1,5 @@
 import brioche.{type Server}
+import brioche/internals/exception
 import brioche/tls
 import brioche/websocket.{type WebSocketSendStatus}
 import gleam/bytes_tree.{type BytesTree}
@@ -124,6 +125,23 @@ pub type SocketAddress {
 /// }
 /// ```
 pub const path_segments = request.path_segments
+
+/// Set a given header to a given value, replacing any existing value.
+///
+/// ```gleam
+/// server.ok()
+/// |> server.set_header("content-type", "application/json")
+/// // -> Request(200, [#("content-type", "application/json")], Empty)
+/// ```
+pub const set_header = request.set_header
+
+/// Parse the query parameters of a request into a list of key-value pairs. The
+/// `key_find` function in the `gleam/list` stdlib module may be useful for
+/// finding values in the list.
+///
+/// Query parameter names do not have to be unique and so may appear multiple
+/// times in the list.
+pub const get_query = request.get_query
 
 /// Every webserver is defined by a handler, that accepts incoming requests
 /// and returns outcoming responses. Because JavaScript is asynchronous,
@@ -650,53 +668,95 @@ pub fn get_uri(server: Server(context)) -> uri.Uri {
   uri
 }
 
-pub fn response(status: Int) -> Response {
-  response.new(status)
-  |> response.set_body(Empty)
-}
-
-pub fn ok() -> Response {
-  response.Response(200, [], Empty)
-}
-
+/// Create a text response.
+///
+/// The `content-type` header will be set to `text/plain`.
+///
+/// ```gleam
+/// let body = "Hello world!"
+/// text_response(body, 200)
+/// // -> Response(200, [#("content-type", "text/plain")], Text(body))
+/// ```
 pub fn text_response(content: String) -> Response {
-  response.Response(200, [], Text(content))
+  let headers = [#("content-type", "text/plain")]
+  response.Response(200, headers, Text(content))
 }
 
+/// Create a JSON response.
+///
+/// The body is expected to be valid JSON, though this is not validated.
+/// The `content-type` header will be set to `application/json`.
+///
+/// ```gleam
+/// let body = json.object([#("name", json.string("Joe")])
+/// json_response(body, 200)
+/// // -> Response(200, [#("content-type", "application/json")], Json(body))
+/// ```
 pub fn json_response(content: Json, status: Int) -> Response {
   let content = Json(content)
   let headers = [#("content-type", "text/html; charset=utf-8")]
   response.Response(status, headers, content)
 }
 
+/// Create a file response.
+///
+/// The `content-type` header will be set automatically accordingly to the
+/// file mime type.
+///
+/// ```gleam
+/// let body = file.new("/my/file/path")
+/// file_response(body, 200)
+/// // -> Response(200, [#("content-type", "application/json")], File(body))
+/// ```
 pub fn file_response(file: brioche.File, status: Int) -> Response {
   let content = File(file)
   response.Response(status, [], content)
 }
 
-pub fn bytes_response(content: BitArray) -> Response {
-  let content = Bytes(content)
-  let headers = [#("content-type", "application/octet-stream")]
-  response.Response(200, headers, content)
-}
-
+/// Set the body of a response to a given `BitArray`.
+///
+/// You likely want to also set the request `content-type` header to an
+/// appropriate value for the format of the content.
+///
+/// ```gleam
+/// let body = <<"Hello, Joe!">>
+/// response(201)
+/// |> bytes_body(body)
+/// // -> Response(201, [], Bytes(body))
+/// ```
 pub fn bytes_body(response: Response, content: BitArray) -> Response {
   response
   |> response.set_body(Bytes(content))
   |> response.set_header("content-type", "application/octet-stream")
 }
 
+/// Set the body of a response to a given `File`.
+///
+/// You likely want to also set the request `content-type` header to an
+/// appropriate value for the format of the content.
+///
+/// ```gleam
+/// let body = file.new("/path/to/file")
+/// response(201)
+/// |> file_body(body)
+/// // -> Response(201, [], File(file.new("/path/to/file")))
+/// ```
 pub fn file_body(response: Response, file: brioche.File) -> Response {
   response
   |> response.set_body(File(file))
 }
 
-pub fn bytes_tree_response(content: BytesTree) -> Response {
-  let content = Bytes(bytes_tree.to_bit_array(content))
-  let headers = [#("content-type", "application/octet-stream")]
-  response.Response(200, headers, content)
-}
-
+/// Set the body of a response to a given `BytesTree`.
+///
+/// You likely want to also set the request `content-type` header to an
+/// appropriate value for the format of the content.
+///
+/// ```gleam
+/// let body = bytes_tree.from_string("Hello, Joe!")
+/// response(201)
+/// |> bytes_tree_body(body)
+/// // -> Response(201, [], Bytes(bytes_tree.to_bit_array(body)))
+/// ```
 pub fn bytes_tree_body(response: Response, content: BytesTree) -> Response {
   response
   |> response.set_body(Bytes(bytes_tree.to_bit_array(content)))
@@ -708,15 +768,12 @@ pub fn bytes_tree_body(response: Response, content: BytesTree) -> Response {
 ///
 /// The body is expected to be valid HTML, though this is not validated.
 ///
-/// # Examples
-///
 /// ```gleam
-/// let body = string_tree.from_string("<h1>Hello, Joe!</h1>")
+/// let body = "<h1>Hello, Joe!</h1>"
 /// response(201)
 /// |> html_body(body)
 /// // -> Response(201, [#("content-type", "text/html; charset=utf-8")], Text(body))
 /// ```
-///
 pub fn html_body(response: Response, html: String) -> Response {
   response
   |> response.set_body(Text(html))
@@ -728,15 +785,12 @@ pub fn html_body(response: Response, html: String) -> Response {
 ///
 /// The body is expected to be valid JSON, though this is not validated.
 ///
-/// # Examples
-///
 /// ```gleam
-/// let body = string_tree.from_string("{\"name\": \"Joe\"}")
+/// let body = json.object([#("name", json.string("Joe"))])
 /// response(201)
 /// |> json_body(body)
-/// // -> Response(201, [#("content-type", "application/json; charset=utf-8")], Text(body))
+/// // -> Response(201, [#("content-type", "application/json; charset=utf-8")], Json(body))
 /// ```
-///
 pub fn json_body(response: Response, json: Json) -> Response {
   response
   |> response.set_body(Json(json))
@@ -748,15 +802,12 @@ pub fn json_body(response: Response, json: Json) -> Response {
 /// You likely want to also set the request `content-type` header to an
 /// appropriate value for the format of the content.
 ///
-/// # Examples
-///
 /// ```gleam
 /// let body = string_tree.from_string("Hello, Joe!")
 /// response(201)
 /// |> string_tree_body(body)
-/// // -> Response(201, [], Text(body))
+/// // -> Response(201, [], Text(string_tree.to_string(body)))
 /// ```
-///
 pub fn string_tree_body(response: Response, content: StringTree) -> Response {
   response
   |> response.set_body(Text(string_tree.to_string(content)))
@@ -767,26 +818,102 @@ pub fn string_tree_body(response: Response, content: StringTree) -> Response {
 /// You likely want to also set the request `content-type` header to an
 /// appropriate value for the format of the content.
 ///
-/// # Examples
-///
 /// ```gleam
-/// let body =
+/// let body = "Hello, Joe!"
 /// response(201)
-/// |> string_body("Hello, Joe!")
-/// // -> Response(
-/// //   201,
-/// //   [],
-/// //   Text(string_tree.from_string("Hello, Joe"))
-/// // )
+/// |> string_body(body)
+/// // -> Response(201, [], Text("Hello, Joe"))
 /// ```
-///
 pub fn text_body(response: Response, content: String) -> Response {
   response
   |> response.set_body(Text(content))
 }
 
+/// Escape a string so that it can be safely included in a HTML document.
+///
+/// Any content provided by the user should be escaped before being included in
+/// a HTML document to prevent cross-site scripting attacks.
+///
+/// `escape_html` uses `Bun.escapeHTML`, and is highly optimized for large inputs.
+///
+/// ```gleam
+/// escape_html("<h1>Hello, Joe!</h1>")
+/// // -> "&lt;h1&gt;Hello, Joe!&lt;/h1&gt;"
+/// ```
 @external(javascript, "./server.ffi.mjs", "escapeHTML")
 pub fn escape_html(content: String) -> String
+
+/// This middleware function ensures that the request has a value for the
+/// `content-type` header, returning an empty response with status code 415:
+/// Unsupported media type if the header is not the expected value
+///
+/// ```gleam
+/// fn handle_request(request: Request) -> Response {
+///   use <- wisp.require_content_type(request, "application/json")
+///   // ...
+/// }
+/// ```
+pub fn require_content_type(
+  request: Request,
+  expected: String,
+  next: fn() -> Response,
+) -> Response {
+  case list.key_find(request.headers, "content-type") {
+    Ok(content_type) ->
+      // This header may have further such as `; charset=utf-8`, so discard
+      // that if it exists.
+      case string.split_once(content_type, ";") {
+        Ok(#(content_type, _)) if content_type == expected -> next()
+        _ if content_type == expected -> next()
+        _ -> unsupported_media_type([expected])
+      }
+
+    _ -> unsupported_media_type([expected])
+  }
+}
+
+/// A middleware function that rescues crashes and returns an empty response
+/// with status code 500: Internal server error.
+///
+/// ```gleam
+/// import gleam/javascript/promise.{type Promise}
+///
+/// fn handle_request(req: Request) -> Promise(Response) {
+///   use <- server.rescue_crashes
+///   // ...
+/// }
+/// ```
+pub fn rescue_crashes(handler: fn() -> Promise(Response)) -> Promise(Response) {
+  use content <- promise.map(exception.rescue(handler))
+  case content {
+    Ok(response) -> response
+    Error(error) -> {
+      exception.log(error)
+      internal_server_error()
+    }
+  }
+}
+
+/// Create an empty response with the given status code.
+///
+/// ```gleam
+/// response(200)
+/// // -> Response(200, [], Empty)
+/// ```
+pub fn response(status: Int) -> Response {
+  response.new(status)
+  |> response.set_body(Empty)
+}
+
+/// Create an empty response with status code 200: OK.
+///
+/// ```gleam
+/// ok()
+/// // -> Response(200, [], Empty)
+/// ```
+pub fn ok() -> Response {
+  response.Response(200, [], Empty)
+}
 
 /// Create an empty response with status code 405: Method Not Allowed. Use this
 /// when a request does not have an appropriate method to be handled.
@@ -794,13 +921,10 @@ pub fn escape_html(content: String) -> String
 /// The `allow` header will be set to a comma separated list of the permitted
 /// methods.
 ///
-/// # Examples
-///
 /// ```gleam
 /// method_not_allowed(allowed: [Get, Post])
 /// // -> Response(405, [#("allow", "GET, POST")], Empty)
 /// ```
-///
 pub fn method_not_allowed(allowed methods: List(http.Method)) -> Response {
   let allowed =
     methods
@@ -813,26 +937,20 @@ pub fn method_not_allowed(allowed methods: List(http.Method)) -> Response {
 
 /// Create an empty response with status code 201: Created.
 ///
-/// # Examples
-///
 /// ```gleam
 /// created()
 /// // -> Response(201, [], Empty)
 /// ```
-///
 pub fn created() -> Response {
   response.Response(201, [], Empty)
 }
 
 /// Create an empty response with status code 202: Accepted.
 ///
-/// # Examples
-///
 /// ```gleam
 /// accepted()
 /// // -> Response(202, [], Empty)
 /// ```
-///
 pub fn accepted() -> Response {
   response.Response(202, [], Empty)
 }
@@ -840,13 +958,10 @@ pub fn accepted() -> Response {
 /// Create an empty response with status code 303: See Other, and the `location`
 /// header set to the given URL. Used to redirect the client to another page.
 ///
-/// # Examples
-///
 /// ```gleam
 /// redirect(to: "https://example.com")
 /// // -> Response(303, [#("location", "https://example.com")], Empty)
 /// ```
-///
 pub fn redirect(to url: String) -> Response {
   response.Response(303, [#("location", url)], Empty)
 }
@@ -858,65 +973,50 @@ pub fn redirect(to url: String) -> Response {
 /// This redirect is permanent and the client is expected to cache the new
 /// location, using it for future requests.
 ///
-/// # Examples
-///
 /// ```gleam
 /// moved_permanently(to: "https://example.com")
 /// // -> Response(308, [#("location", "https://example.com")], Empty)
 /// ```
-///
 pub fn moved_permanently(to url: String) -> Response {
   response.Response(308, [#("location", url)], Empty)
 }
 
 /// Create an empty response with status code 204: No content.
 ///
-/// # Examples
-///
 /// ```gleam
 /// no_content()
 /// // -> Response(204, [], Empty)
 /// ```
-///
 pub fn no_content() -> Response {
   response.Response(204, [], Empty)
 }
 
 /// Create an empty response with status code 404: No content.
 ///
-/// # Examples
-///
 /// ```gleam
 /// not_found()
 /// // -> Response(404, [], Empty)
 /// ```
-///
 pub fn not_found() -> Response {
   response.Response(404, [], Empty)
 }
 
 /// Create an empty response with status code 400: Bad request.
 ///
-/// # Examples
-///
 /// ```gleam
 /// bad_request()
 /// // -> Response(400, [], Empty)
 /// ```
-///
 pub fn bad_request() -> Response {
   response.Response(400, [], Empty)
 }
 
 /// Create an empty response with status code 413: Entity too large.
 ///
-/// # Examples
-///
 /// ```gleam
 /// entity_too_large()
 /// // -> Response(413, [], Empty)
 /// ```
-///
 pub fn entity_too_large() -> Response {
   response.Response(413, [], Empty)
 }
@@ -926,13 +1026,10 @@ pub fn entity_too_large() -> Response {
 /// The `allow` header will be set to a comma separated list of the permitted
 /// content-types.
 ///
-/// # Examples
-///
 /// ```gleam
 /// unsupported_media_type(accept: ["application/json", "text/plain"])
 /// // -> Response(415, [#("allow", "application/json, text/plain")], Empty)
 /// ```
-///
 pub fn unsupported_media_type(accept acceptable: List(String)) -> Response {
   let acceptable = string.join(acceptable, ", ")
   response.Response(415, [#("accept", acceptable)], Empty)
@@ -940,26 +1037,20 @@ pub fn unsupported_media_type(accept acceptable: List(String)) -> Response {
 
 /// Create an empty response with status code 422: Unprocessable entity.
 ///
-/// # Examples
-///
 /// ```gleam
 /// unprocessable_entity()
 /// // -> Response(422, [], Empty)
 /// ```
-///
 pub fn unprocessable_entity() -> Response {
   response.Response(422, [], Empty)
 }
 
 /// Create an empty response with status code 500: Internal server error.
 ///
-/// # Examples
-///
 /// ```gleam
 /// internal_server_error()
 /// // -> Response(500, [], Empty)
 /// ```
-///
 pub fn internal_server_error() -> Response {
   response.Response(500, [], Empty)
 }
@@ -973,14 +1064,11 @@ pub fn set_body(response: Response, body: Body) {
 /// The body is expected to be valid HTML, though this is not validated.
 /// The `content-type` header will be set to `text/html`.
 ///
-/// # Examples
-///
 /// ```gleam
 /// let body = string_tree.from_string("<h1>Hello, Joe!</h1>")
 /// html_response(body, 200)
 /// // -> Response(200, [#("content-type", "text/html")], Text(body))
 /// ```
-///
 pub fn html_response(html: String, status: Int) -> Response {
   let headers = [#("content-type", "text/html; charset=utf-8")]
   response.Response(status, headers, Text(html))

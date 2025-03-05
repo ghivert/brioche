@@ -1,5 +1,6 @@
 import brioche.{type Server}
 import brioche/file
+import brioche/internals/exception
 import brioche/server.{type Request} as bun
 import brioche/tls
 import brioche/websocket
@@ -57,7 +58,7 @@ pub fn config_stability_test() {
 pub fn server_getters_test() {
   let ok = fn(_, _) { promise.resolve(bun.text_response("OK")) }
   let server = bun.handler(ok) |> bun.port(1234) |> bun.serve
-  use <- server_utils.defer(cleanup: fn() { bun.stop(server, force: False) })
+  use <- exception.defer(cleanup: fn() { bun.stop(server, force: False) })
   bun.get_port(server) |> should.equal(1234)
   bun.get_development(server) |> should.equal(True)
   bun.get_hostname(server) |> should.equal("localhost")

@@ -1,4 +1,5 @@
 import brioche.{type Server}
+import brioche/internals/exception
 import brioche/server.{type Request, type Response} as bun
 import gleam/bool
 import gleam/dynamic/decode
@@ -16,7 +17,7 @@ pub fn with_server(
 ) -> Promise(Nil) {
   let server = bun.handler(handler) |> bun.port(0) |> bun.serve
   let port = bun.get_port(server)
-  use <- defer(cleanup: _, body: fn() { next(server, port) })
+  use <- exception.defer(cleanup: _, body: fn() { next(server, port) })
   bun.stop(server, force: False)
 }
 
@@ -26,7 +27,7 @@ pub fn with_custom_server(
 ) -> Promise(Nil) {
   let server = bun.serve(config)
   let port = bun.get_port(server)
-  use <- defer(cleanup: _, body: fn() { next(server, port) })
+  use <- exception.defer(cleanup: _, body: fn() { next(server, port) })
   bun.stop(server, force: False)
 }
 
@@ -99,14 +100,5 @@ pub fn socket_address_decoder() {
   decode.success(bun.SocketAddress(port:, address:))
 }
 
-@external(javascript, "./server.ffi.mjs", "log")
-pub fn log(value: a) -> Nil
-
 @external(javascript, "./server.ffi.mjs", "coerce")
 pub fn coerce(a: a) -> b
-
-@external(javascript, "./server.ffi.mjs", "defer")
-pub fn defer(
-  cleanup cleanup: fn() -> a,
-  body body: fn() -> Promise(b),
-) -> Promise(b)
