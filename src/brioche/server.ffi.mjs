@@ -5,10 +5,6 @@ import * as $request from '../../gleam_http/gleam/http/request.mjs'
 import * as $http from '../../gleam_http/gleam/http.mjs'
 import * as $option from '../../gleam_stdlib/gleam/option.mjs'
 
-export function coerce(a) {
-  return a
-}
-
 export function escapeHTML(content) {
   return Bun.escapeHTML(content)
 }
@@ -51,15 +47,16 @@ export function requestIp(server, request) {
   return new $option.Some(socketAddress)
 }
 
-export function upgrade(server, request, headers, context) {
+export function upgrade(server, request, headers, context, next) {
   const headers_ = new Headers()
   for (const [header, value] of headers) headers_.append(header, value)
   const options = { headers: headers_, data: context }
-  return server.upgrade(request, options)
+  if (server.upgrade(request.body, options)) return undefined
+  return next()
 }
 
 export function publish(server, topic, data) {
-  const dat = data.buffer !== undefined ? data.buffer : data
+  const dat = data.rawBuffer !== undefined ? data.rawBuffer : data
   const result = server.publish(topic, dat)
   if (result === 0) return new $websocket.MessageDropped()
   if (result === -1) return new $websocket.MessageBackpressured()
@@ -79,14 +76,17 @@ export const data = ws => ws.data
 export const readyState = ws => ws.readyState
 export const remoteAddress = ws => ws.remoteAddress
 export const wsClose = ws => ws.close()
+export const wsTerminate = ws => ws.terminate()
+export const wsPing = ws => ws.ping()
+export const wsPong = ws => ws.pong()
 export const wsSubscribe = (ws, topic) => ws.subscribe(topic)
 export const wsUnsubscribe = (ws, topic) => ws.unsubscribe(topic)
-export const wsPublish = (ws, topic, message) => ws.publish(topic, message)
 export const wsIsSubscribed = (ws, topic) => ws.isSubscribed(topic)
 export const wsCork = (ws, callback) => ws.cork(callback)
 
 export function wsSend(ws, message) {
-  const result = ws.send(message)
+  const message_ = message.rawBuffer !== undefined ? message.rawBuffer : message
+  const result = ws.send(message_)
   if (result === 0) return new $websocket.MessageDropped()
   if (result === -1) return new $websocket.MessageBackpressured()
   return new $websocket.MessageSent(result)
@@ -102,6 +102,7 @@ function convertOptions(options) {
     async fetch(request, server) {
       const req = toHttpRequest(request)
       const response = await options.fetch(req, server)
+      if (response === undefined) return response
       return generateResponse(response)
     },
   }
@@ -203,7 +204,9 @@ function generateMessageHandler(websocket) {
   return function (ws, message) {
     if (typeof message === 'string')
       return websocket.text_message[0]?.(ws, message)
-    if (typeof message === 'object')
-      return websocket.bytes_message[0]?.(ws, message)
+    if (message instanceof Uint8Array) {
+      const data = $gleam.toBitArray(message)
+      return websocket.bytes_message[0]?.(ws, data)
+    }
   }
 }

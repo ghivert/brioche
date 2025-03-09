@@ -20,8 +20,8 @@ export function which(bin) {
 
 export function gzipSync(content) {
   try {
-    const result = Bun.gzipSync(content.buffer)
-    const buffer = new gleam.BitArray(result)
+    const result = Bun.gzipSync(content.rawBuffer)
+    const buffer = gleam.toBitArray(result)
     return new gleam.Ok(buffer)
   } catch (error) {
     return new gleam.Error()
@@ -30,8 +30,8 @@ export function gzipSync(content) {
 
 export function gunzipSync(content) {
   try {
-    const result = Bun.gunzipSync(content.buffer)
-    const buffer = new gleam.BitArray(result)
+    const result = Bun.gunzipSync(content.rawBuffer)
+    const buffer = gleam.toBitArray(result)
     return new gleam.Ok(buffer)
   } catch (error) {
     return new gleam.Error()
@@ -40,8 +40,8 @@ export function gunzipSync(content) {
 
 export function deflateSync(content) {
   try {
-    const result = Bun.deflateSync(content.buffer)
-    const buffer = new gleam.BitArray(result)
+    const result = Bun.deflateSync(content.rawBuffer)
+    const buffer = gleam.toBitArray(result)
     return new gleam.Ok(buffer)
   } catch (error) {
     return new gleam.Error()
@@ -50,8 +50,8 @@ export function deflateSync(content) {
 
 export function inflateSync(content) {
   try {
-    const result = Bun.inflateSync(content.buffer)
-    const buffer = new gleam.BitArray(result)
+    const result = Bun.inflateSync(content.rawBuffer)
+    const buffer = gleam.toBitArray(result)
     return new gleam.Ok(buffer)
   } catch (error) {
     throw new gleam.Error()

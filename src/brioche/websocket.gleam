@@ -134,30 +134,42 @@ pub fn send(
 ) -> WebSocketSendStatus
 
 @external(javascript, "./server.ffi.mjs", "wsSend")
-pub fn send_bytes(websocket: bun.WebSocket(context), message: BitArray) -> Int
+pub fn send_bytes(
+  websocket: bun.WebSocket(context),
+  message: BitArray,
+) -> WebSocketSendStatus
 
 @external(javascript, "./server.ffi.mjs", "wsClose")
 pub fn close(websocket: bun.WebSocket(context)) -> Int
 
+@external(javascript, "./server.ffi.mjs", "wsTerminate")
+pub fn terminate(websocket: bun.WebSocket(context)) -> Int
+
 @external(javascript, "./server.ffi.mjs", "wsSubscribe")
 pub fn subscribe(websocket: bun.WebSocket(context), topic: String) -> Nil
+
+@external(javascript, "./server.ffi.mjs", "wsPing")
+pub fn ping(websocket: bun.WebSocket(context)) -> Nil
+
+@external(javascript, "./server.ffi.mjs", "wsPong")
+pub fn pong(websocket: bun.WebSocket(context)) -> Nil
 
 @external(javascript, "./server.ffi.mjs", "wsUnsubscribe")
 pub fn unsubscribe(websocket: bun.WebSocket(context), topic: String) -> Nil
 
-@external(javascript, "./server.ffi.mjs", "wsPublish")
+@external(javascript, "./server.ffi.mjs", "publish")
 pub fn publish(
   websocket: bun.WebSocket(context),
   topic: String,
   message: String,
-) -> Nil
+) -> WebSocketSendStatus
 
-@external(javascript, "./server.ffi.mjs", "wsPublish")
+@external(javascript, "./server.ffi.mjs", "publish")
 pub fn publish_bytes(
   websocket: bun.WebSocket(context),
   topic: String,
   message: BitArray,
-) -> Nil
+) -> WebSocketSendStatus
 
 @external(javascript, "./server.ffi.mjs", "wsIsSubscribed")
 pub fn is_subscribed(websocket: bun.WebSocket(context), topic: String) -> Bool

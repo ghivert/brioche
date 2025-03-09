@@ -501,7 +501,6 @@ pub fn request_ip(
   request: Request,
 ) -> Option(SocketAddress)
 
-/// TODO
 /// Upgrade a Request to a WebSocket connection handled by Bun. In case the
 /// upgrading could not be achieved, continue the execution. If the upgrade is
 /// successful, `upgrade` will automatically return, and shortcut execution.
@@ -549,30 +548,26 @@ pub fn request_ip(
 ///   |> server.serve
 /// }
 /// ```
+@external(javascript, "./server.ffi.mjs", "upgrade")
 pub fn upgrade(
   server: Server(context),
   request: Request,
   headers: List(#(String, String)),
   context: context,
   next: fn() -> Promise(Response),
-) -> Promise(Response) {
-  case do_upgrade(server, request, headers, context) {
-    // Connection has been upgraded, return undefined.
-    True -> coerce(Nil)
-    // Connection has not been upgraded, continue with the following execution.
-    False -> next()
-  }
-}
+) -> Promise(Response)
 
-@external(javascript, "./server.ffi.mjs", "upgrade")
-fn do_upgrade(
-  server: Server(context),
-  request: Request,
-  headers: List(#(String, String)),
-  context: context,
-) -> Bool
-
-/// TODO
+/// Publish a string message to every WebSockets connected to a specific topic.
+///
+/// ```gleam
+/// let server =
+///   server.handler(handler)
+///   |> server.websocket(websocket)
+///   |> server.serve
+/// server.publish(server, "my-topic", "example message")
+/// // Every WebSockets that called `websocket.subscribe("my-topic")` will
+/// // receive the message.
+/// ```
 @external(javascript, "./server.ffi.mjs", "publish")
 pub fn publish(
   server: Server(context),
@@ -580,7 +575,17 @@ pub fn publish(
   data: String,
 ) -> WebSocketSendStatus
 
-/// TODO
+/// Publish a bytes message to every WebSockets connected to a specific topic.
+///
+/// ```gleam
+/// let server =
+///   server.handler(handler)
+///   |> server.websocket(websocket)
+///   |> server.serve
+/// server.publish_bytes(server, "my-topic", <<"example message">>)
+/// // Every WebSockets that called `websocket.subscribe("my-topic")` will
+/// // receive the message.
+/// ```
 @external(javascript, "./server.ffi.mjs", "publish")
 pub fn publish_bytes(
   server: Server(context),
@@ -588,7 +593,16 @@ pub fn publish_bytes(
   data: BitArray,
 ) -> WebSocketSendStatus
 
-/// TODO
+/// Get the current count of WebSockets subscribed to the topic.
+///
+/// ```gleam
+/// let server =
+///   server.handler(handler)
+///   |> server.websocket(websocket)
+///   |> server.serve
+/// let count = server.subscriber_count(server)
+/// // count == 0 while nobody subscribed.
+/// ```
 @external(javascript, "./server.ffi.mjs", "subscriberCount")
 pub fn subscriber_count(server: Server(context), topic: String) -> Int
 
@@ -597,7 +611,7 @@ pub fn subscriber_count(server: Server(context), topic: String) -> Int
 /// ```gleam
 /// let server = server.handler(handler) |> server.port(0) |> server.serve
 /// let port = server.get_port(server)
-/// /// port is the defined port by the server.
+/// // port is the defined port by the server.
 /// ```
 @external(javascript, "./server.ffi.mjs", "getPort")
 pub fn get_port(server: Server(context)) -> Int
@@ -608,7 +622,7 @@ pub fn get_port(server: Server(context)) -> Int
 /// ```gleam
 /// let server = server.handler(handler) |> server.serve
 /// let is_dev = server.get_development(server)
-/// /// is_dev == True
+/// // is_dev == True
 /// ```
 @external(javascript, "./server.ffi.mjs", "getDevelopment")
 pub fn get_development(server: Server(context)) -> Bool
@@ -618,7 +632,7 @@ pub fn get_development(server: Server(context)) -> Bool
 /// ```gleam
 /// let server = server.handler(handler) |> server.serve
 /// let hostname = server.get_hostname(server)
-/// /// hostname == "0.0.0.0"
+/// // hostname == "0.0.0.0"
 /// ```
 @external(javascript, "./server.ffi.mjs", "getHostname")
 pub fn get_hostname(server: Server(context)) -> String
@@ -1073,6 +1087,3 @@ pub fn html_response(html: String, status: Int) -> Response {
   let headers = [#("content-type", "text/html; charset=utf-8")]
   response.Response(status, headers, Text(html))
 }
-
-@external(javascript, "./server.ffi.mjs", "coerce")
-fn coerce(a: a) -> b
