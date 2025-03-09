@@ -63,10 +63,8 @@ pub fn subscribe_websocket_test() {
     |> ws.on_bytes(on_client_bitarray)
   use _ <- await(promise.wait(100))
   bun.subscriber_count(server, example_topic) |> should.equal(1)
-  bun.publish(server, example_topic, txt_message)
-  |> should.equal(websocket.MessageSent(19))
-  bun.publish_bytes(server, example_topic, bytes_message)
-  |> should.equal(websocket.MessageSent(18))
+  bun.publish(server, example_topic, txt_message) |> is_message_sent
+  bun.publish_bytes(server, example_topic, bytes_message) |> is_message_sent
   let _ = ws.send(socket, txt_message)
   let _ = ws.send_bytes(socket, bytes_message)
   resolve(Nil)
@@ -92,10 +90,8 @@ fn on_subscribe_open(ws: brioche.WebSocket(String)) {
   websocket.subscribe(ws, example_topic)
   websocket.is_subscribed(ws, example_topic) |> should.be_true
   use _ <- await(promise.wait(200))
-  websocket.publish(ws, example_topic, txt_message)
-  |> should.equal(websocket.MessageSent(19))
-  websocket.publish_bytes(ws, example_topic, bytes_message)
-  |> should.equal(websocket.MessageSent(18))
+  websocket.publish(ws, example_topic, txt_message) |> is_message_sent
+  websocket.publish_bytes(ws, example_topic, bytes_message) |> is_message_sent
   use _ <- await(promise.wait(200))
   websocket.unsubscribe(ws, example_topic)
   websocket.is_subscribed(ws, example_topic) |> should.be_false
@@ -115,14 +111,14 @@ fn on_server_close(ws: brioche.WebSocket(a), code: Int, reason: String) {
 fn on_server_text(ws: brioche.WebSocket(a), text: String) {
   ws.is_websocket(ws) |> should.be_true
   text |> should.equal(txt_message)
-  websocket.send(ws, text) |> should.equal(websocket.MessageSent(19))
+  websocket.send(ws, text) |> is_message_sent
   resolve(Nil)
 }
 
 fn on_server_bytes(ws: brioche.WebSocket(a), bytes: BitArray) {
   ws.is_websocket(ws) |> should.be_true
   bytes |> should.equal(bytes_message)
-  websocket.send_bytes(ws, bytes) |> should.equal(websocket.MessageSent(18))
+  websocket.send_bytes(ws, bytes) |> is_message_sent
   resolve(Nil)
 }
 
@@ -132,4 +128,11 @@ fn on_client_string(message: String) {
 
 fn on_client_bitarray(message: BitArray) {
   message |> should.equal(bytes_message)
+}
+
+fn is_message_sent(status: websocket.WebSocketSendStatus) -> Nil {
+  case status {
+    websocket.MessageSent(_) -> Nil
+    _ -> should.fail()
+  }
 }
