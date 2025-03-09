@@ -2,14 +2,15 @@ name = "brioche"
 version = "1.0.0"
 target = "javascript"
 
-[javascript]
-typescript_declarations = true
-runtime = "bun"
-
 description = "Bun bindings for Gleam"
 licences = ["MIT"]
 repository = { type = "github", user = "ghivert", repo = "brioche" }
+gleam = ">= 1.9.0 and < 2.0.0"
 # links = [{ title = "Website", href = "" }]
+
+[javascript]
+typescript_declarations = true
+runtime = "bun"
 
 [dependencies]
 gleam_fetch = ">= 1.1.1 and < 2.0.0"
