@@ -67,7 +67,7 @@ pub type Body {
 
 /// Config used to setup a Bun's server. Config is opaque, and is created by
 /// using [`server.handler`](#handler). Every server must have a handler (even
-/// if a simple default "OK"), and can have a bun of options:
+/// if a simple default "OK"), and can have a bunch of options:
 /// - [`development`](#development), to set the development mode. Defaults to `True`.
 /// - [`hostname`](#hostname), to set the hostname to listen to. Defaults to `"0.0.0.0"`.
 /// - [`idle_timeout`](#idle_timeout), to set the default timeout for a request.
@@ -77,6 +77,9 @@ pub type Body {
 /// - [`tls`](#tls), to define HTTPS options.
 /// - [`unix`](#unix), to listen to a Unix socket instead of HTTP.
 /// - [`websocket`](#websocket), to handle WebSockets connections.
+///
+/// > Take note of the context type. That type is used with WebSockets, to pass
+/// > contextual data to every WebSocket upon initialisation.
 pub opaque type Config(context) {
   Config(
     development: Bool,
@@ -156,12 +159,12 @@ pub const get_query = request.get_query
 /// import brioche/server.{type Request, type Response}
 /// import gleam/javascript/promise.{type Promise}
 ///
-/// pub fn main() -> brioche.Server {
+/// pub fn main() -> brioche.Server(context) {
 ///   server.handler(handler)
 ///   |> server.serve
 /// }
 ///
-/// fn handler(req: Request, server: brioche.Server) -> Promise(Response) {
+/// fn handler(req: Request, server: brioche.Server(context)) -> Promise(Response) {
 ///   server.text_response("OK")
 ///   |> promise.resolve
 /// }
@@ -191,7 +194,7 @@ pub fn handler(
 /// import brioche/server.{type Request, type Response}
 /// import gleam/javascript/promise.{type Promise}
 ///
-/// pub fn main() -> brioche.Server {
+/// pub fn main() -> brioche.Server(context) {
 ///   server.handler(handler)
 ///   |> server.port(3000)
 ///   |> server.serve
@@ -209,7 +212,7 @@ pub fn port(options: Config(context), port: Int) -> Config(context) {
 /// import brioche
 /// import brioche/server
 ///
-/// pub fn main() -> brioche.Server {
+/// pub fn main() -> brioche.Server(context) {
 ///   server.handler(handler)
 ///   |> server.hostname("127.0.0.1")
 ///   |> server.serve
@@ -229,7 +232,7 @@ pub fn hostname(options: Config(context), hostname: String) -> Config(context) {
 /// import brioche
 /// import brioche/server
 ///
-/// pub fn main() -> brioche.Server {
+/// pub fn main() -> brioche.Server(context) {
 ///   server.handler(handler)
 ///   |> server.development(True)
 ///   |> server.serve
@@ -251,7 +254,7 @@ pub fn development(
 /// import brioche
 /// import brioche/server
 ///
-/// pub fn main() -> brioche.Server {
+/// pub fn main() -> brioche.Server(context) {
 ///   server.handler(handler)
 ///   |> server.static(static_routes())
 ///   |> server.serve
@@ -281,7 +284,7 @@ pub fn static(
 /// import brioche
 /// import brioche/server
 ///
-/// pub fn main() -> brioche.Server {
+/// pub fn main() -> brioche.Server(context) {
 ///   server.handler(handler)
 ///   |> server.unix("/tmp/my-socket.sock") // Unix socket
 ///   |> server.unix("\0my-abstract-socket") // Abstract Unix socket
@@ -303,7 +306,7 @@ pub fn unix(options: Config(context), unix: String) -> Config(context) {
 /// import brioche
 /// import brioche/server
 ///
-/// pub fn main() -> brioche.Server {
+/// pub fn main() -> brioche.Server(context) {
 ///   server.handler(handler)
 ///   |> server.idle_timeout(10) // 10 seconds
 ///   |> server.serve
@@ -326,7 +329,7 @@ pub fn idle_timeout(
 /// import brioche/server
 /// import brioche/tls
 ///
-/// pub fn main() -> brioche.Server {
+/// pub fn main() -> brioche.Server(context) {
 ///   server.handler(handler)
 ///   |> server.tls({
 ///     let key = tls.File(file.new("/path/to/key/file.key"))
@@ -349,7 +352,7 @@ pub fn tls(options: Config(context), tls: tls.TLS) -> Config(context) {
 /// import brioche/server
 /// import brioche/websocket
 ///
-/// pub fn main() -> brioche.Server {
+/// pub fn main() -> brioche.Server(context) {
 ///   server.handler(handler)
 ///   |> server.websocket({
 ///     websocket.init()
@@ -377,7 +380,7 @@ pub fn websocket(
 /// import brioche.{type Server}
 /// import brioche/server.{type Request}
 ///
-/// pub fn main() {
+/// pub fn main() -> brioche.Server(context) {
 ///   server.handler(handler)
 ///   |> server.port(3000)
 ///   |> server.hostname("0.0.0.0")
@@ -400,7 +403,7 @@ pub fn serve(options: Config(context)) -> Server(context)
 /// ```gleam
 /// import brioche/server
 ///
-/// pub fn main() {
+/// pub fn main() -> brioche.Server(context) {
 ///   let server =
 ///     server.handler(handler)
 ///     |> server.port(3000)
@@ -428,7 +431,7 @@ pub fn reload(
 /// ```gleam
 /// import brioche/server
 ///
-/// pub fn main() {
+/// pub fn main() -> brioche.Server(context) {
 ///   let server =
 ///     server.handler(handler)
 ///     |> server.port(3000)
@@ -465,7 +468,7 @@ pub fn unref(server: Server(context)) -> Server(context)
 /// import brioche.{type Server}
 /// import brioche/server.{type Request}
 ///
-/// pub fn main() {
+/// pub fn main() -> brioche.Server(context) {
 ///   server.handler(fn (request: Request, server: Server(ctx)) {
 ///     server.timeout(server, request, 60)
 ///     // Request will timeout after 60 seconds.
@@ -487,7 +490,7 @@ pub fn timeout(
 /// import brioche.{type Server}
 /// import brioche/server.{type Request}
 ///
-/// pub fn main() {
+/// pub fn main() -> brioche.Server(context) {
 ///   server.handler(fn (request: Request, server: Server(ctx)) {
 ///     let address = server.request_ip(server, request)
 ///     // Use adress here.
@@ -537,13 +540,13 @@ pub fn request_ip(
 ///   // Upgrade the connection.
 ///   use <- server.upgrade(server, request, headers, initial_context)
 ///   // If upgrading failed, code below will execute.
-///   brioche.internal_error()
-///   |> brioche.text_body("Impossible to upgrade connection, internal error.")
+///   server.internal_error()
+///   |> server.text_body("Impossible to upgrade connection, internal error.")
 ///   |> promise.resolve
 /// }
 ///
 /// // Run your server, and let your connection come.
-/// fn main() {
+/// fn main() -> brioche.Server(context) {
 ///   server.handler(handler)
 ///   |> server.serve
 /// }

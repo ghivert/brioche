@@ -6,6 +6,7 @@ description = "Bun bindings for Gleam"
 licences = ["MIT"]
 repository = { type = "github", user = "ghivert", repo = "brioche" }
 gleam = ">= 1.9.0 and < 2.0.0"
+internal_modules = ["brioche/internals.gleam", "brioche/internals/*"]
 # links = [{ title = "Website", href = "" }]
 
 [javascript]

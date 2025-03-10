@@ -8,16 +8,10 @@
 //// - [`Bun.env`](https://bun.sh/docs/api/utils#bun-env), use
 ////   [`envoy`](https://hexdocs.pm/envoy/) instead.
 //// - [`Bun.sleep`](https://bun.sh/docs/api/utils#bun-sleep), use
-////   `gleam/javascript/promise.sleep` instead.
+////   `gleam/javascript/promise.wait` instead.
 //// - [`Bun.deepEquals`](https://bun.sh/docs/api/utils#bun-deepequals), use
 ////   default equality operator in Gleam. Equality in Gleam is already resolved
 ////   as deep equality.
-//// - [`Bun.escapeHTML`](https://bun.sh/docs/api/utils#bun-escapehtml) will not
-////   be implemented, as solutions like `lustre` or `nakai` already
-////   generate correct, escaped HTML. While `Bun.escapeHTML` is made to be
-////   especially fast, it's the responsibility of the framework to detect Bun
-////   environment and calling it. When `Bun.escapeHTML` is really needed,
-////   writing a function as FFI is the way-to-go.
 //// - [`Bun.fileURLToPath`](https://bun.sh/docs/api/utils#bun-fileurltopath)
 ////   will not be implemented, as solutions like this already exists in Gleam.
 ////   Otherwise, they should be implemented directly on `gleam/uri`.
@@ -33,7 +27,7 @@
 ////   [deserialize](https://hexdocs.pm/gleam_stdlib/gleam/dynamic/decode.html)
 ////   data should be used instead.
 //// - [`estimateShallowMemoryUsageOf` in `bun:jsc`](https://bun.sh/docs/api/utils#estimateshallowmemoryusageof-in-bun-jsc)
-////   will not be implemented.
+////   will probably not be implemented.
 
 import gleam/javascript/promise.{type Promise}
 
@@ -131,8 +125,8 @@ pub fn revision() -> String
 @external(javascript, "./brioche.ffi.mjs", "mainScript")
 pub fn main_script() -> String
 
-/// A blocking, synchronous version of `gleam/javascript/promise.sleep`.
-/// `promise.sleep` should almost always be used instead of `sleep`. However,
+/// A blocking, synchronous version of `gleam/javascript/promise.wait`.
+/// `promise.wait` should almost always be used instead of `wait`. However,
 /// that function can be used in scripts, in WebWorkers, or every other
 /// environment where blocking the main thread is not an issue.
 ///
@@ -141,12 +135,12 @@ pub fn main_script() -> String
 /// ```gleam
 /// import brioche
 /// // Sleep for 1 second.
-/// brioche.sleep(1000)
+/// brioche.wait(1000)
 /// ```
 ///
 /// [Bun Documentation](https://bun.sh/docs/api/utils#bun-sleepsync)
 @external(javascript, "./brioche.ffi.mjs", "sleepSync")
-pub fn sleep(milliseconds ms: Int) -> Nil
+pub fn wait(milliseconds ms: Int) -> Nil
 
 /// Returns the path to an executable, similar to typing `which` in your terminal.
 ///

@@ -75,7 +75,7 @@ export const subscriberCount = (server, topic) => server.subscriberCount(topic)
 export const data = ws => ws.data
 export const readyState = ws => ws.readyState
 export const remoteAddress = ws => ws.remoteAddress
-export const wsClose = ws => ws.close()
+export const wsClose = (ws, code, reason) => ws.close(code, reason)
 export const wsTerminate = ws => ws.terminate()
 export const wsPing = ws => ws.ping()
 export const wsPong = ws => ws.pong()
@@ -197,6 +197,7 @@ function generateWebsocket(options) {
     closeOnBackpressureLimit: websocket.close_on_backpressure_limit[0],
     idleTimeout: websocket.idle_timeout[0],
     publishToSelf: websocket.publish_to_self[0],
+    sendPings: websocket.send_pings[0],
   }
 }
 

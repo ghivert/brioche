@@ -60,7 +60,7 @@ pub fn random_uuid_test() {
 
 pub fn sleep_sync_test() {
   let start = timestamp.system_time()
-  bun.sleep(25)
+  bun.wait(25)
   let end = timestamp.system_time()
   let delta = timestamp.difference(start, end)
   let #(_, nanoseconds) = duration.to_seconds_and_nanoseconds(delta)
