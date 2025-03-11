@@ -29,6 +29,7 @@ export function unref(writer) {
   return writer
 }
 
+// Unused at the moment, while the API is unclear.
 export function writerStart(writer) {
   writer.start()
   return writer

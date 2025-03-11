@@ -14,7 +14,7 @@ pub fn size_test() {
 
 pub fn mime_test() {
   file.new(example)
-  |> file.mime
+  |> file.mime_type
   |> should.equal("text/plain;charset=utf-8")
 }
 

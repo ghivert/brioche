@@ -1,11 +1,11 @@
 //// `File` created by Bun. A Bun `File` represents a lazily-loaded file;
-//// initializing it does not actually read the file from disk. `File` should be
-//// used in conjuction with `brioche/file` module. Bun `File` is the recommended
-//// way to manipulate files on Bun as operations on files are heavily optimised.
-//// However, Bun does not implements every filesystem operations, but instead,
-//// provides an almost complete implementation of
+//// initializing it does not actually read the file from disk.
+//// Bun `File` is the recommended way to manipulate files on Bun as operations
+//// on files are heavily optimised. However, Bun does not implements every
+//// filesystem operations, but instead, provides an almost complete implementation of
 //// [`node:fs`](https://nodejs.org/api/fs.html) module. It should be used for
-//// every complex operations needed on filesystem.
+//// every complex operations needed on filesystem. Any Gleam library compatible
+//// with `node:fs` will work.
 ////
 //// [`FileSink`](#FileSink) should be used instead of `File` when incremental
 //// writing are needed.

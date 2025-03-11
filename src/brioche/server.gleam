@@ -448,16 +448,17 @@ pub fn reload(
 @external(javascript, "./server.ffi.mjs", "stop")
 pub fn stop(server: Server(context), force force: Bool) -> Promise(Nil)
 
-/// Count server as running to determine if process should be kept
-/// alive or not. Restore the default behaviour of servers.
+/// By default, Bun will not stop the process while a `Server` is running.
+/// After a call to [`unref`](#unref), the `Server` could be considered as
+/// non-essential. `ref` restores the default behaviour.
 /// Returns the same server to allow chaining calls if needed.
-/// `unref` can be used to disable that behaviour.
 @external(javascript, "./server.ffi.mjs", "ref")
 pub fn ref(server: Server(context)) -> Server(context)
 
-/// Stop counting server as running to determine if process should be kept
-/// alive or not. Returns the same server to allow chaining calls if needed.
-/// `ref` restore the old behaviour.
+/// By default, Bun will not stop the process while a `Server` is opened.
+/// `unref` changes that behaviour, and considers `Server` as non-essential.
+/// [`ref`](#ref) restores the default behaviour.
+/// Returns the same server to allow chaining calls if needed.
 @external(javascript, "./server.ffi.mjs", "unref")
 pub fn unref(server: Server(context)) -> Server(context)
 
