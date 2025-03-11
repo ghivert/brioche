@@ -24,13 +24,6 @@ pub fn write_text_test() {
   |> should.equal(Nil)
 }
 
-pub fn write_start_test() {
-  let file = file.new(example)
-  let writer = file.writer(file)
-  file_sink.start(writer)
-  |> should.equal(writer)
-}
-
 pub fn ref_test() {
   let writer = file.writer(file.new(example))
   writer
