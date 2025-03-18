@@ -4,6 +4,7 @@ import * as $gleam from '../gleam.mjs'
 import * as $request from '../../gleam_http/gleam/http/request.mjs'
 import * as $http from '../../gleam_http/gleam/http.mjs'
 import * as $option from '../../gleam_stdlib/gleam/option.mjs'
+import { generateTLS } from './tls.ffi.mjs'
 
 export function escapeHTML(content) {
   return Bun.escapeHTML(content)
@@ -97,7 +98,7 @@ function convertOptions(options) {
     port: options.port[0],
     hostname: options.hostname[0],
     static: generateStatic(options),
-    tls: generateTLS(options),
+    tls: generateTLS(options.tls[0]),
     websocket: generateWebsocket(options),
     async fetch(request, server) {
       const req = toHttpRequest(request)
@@ -166,21 +167,6 @@ function generateStatic(options) {
   const routes = static_routes.toArray()
   const bunRoutes = routes.map(([key, value]) => [key, generateResponse(value)])
   return Object.fromEntries(bunRoutes)
-}
-
-function generateTLS(options) {
-  const tls = options.tls[0]
-  if (!tls) return
-  return {
-    key: tls.key.content,
-    cert: tls.cert.content,
-    serverName: tls.server_name[0],
-    rejectUnauthorized: tls.reject_unauthorized[0],
-    passphrase: tls.passphrase[0],
-    requestCert: tls.request_cert[0],
-    ca: tls.ca[0]?.content,
-    dhParamsFile: tls.dh_params_file[0],
-  }
 }
 
 function generateWebsocket(options) {

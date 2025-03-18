@@ -10,11 +10,11 @@ import utils/promises
 
 /// Current test version. Update the version when updating the Bun
 /// runtime after adding new API.
-const version = "1.2.4"
+const version = "1.2.5"
 
 /// Current revision. Update the revision when updating the Bun
 /// runtime after adding new API.
-const revision = "fd9a5ea668e9ffce5fd5f25a7cfd2d45f0eaa85b"
+const revision = "013fdddc6ed18bc849614ccb37a296fa0f69a5db"
 
 pub fn version_test() {
   bun.version()

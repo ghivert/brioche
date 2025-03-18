@@ -99,6 +99,3 @@ pub fn socket_address_decoder() {
   })
   decode.success(bun.SocketAddress(port:, address:))
 }
-
-@external(javascript, "./server.ffi.mjs", "coerce")
-pub fn coerce(a: a) -> b

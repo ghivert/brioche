@@ -1,8 +1,8 @@
 import brioche as bun
 import gleam/option.{type Option, None, Some}
 
-pub type TLS {
-  TLS(
+pub type Tls {
+  Tls(
     key: Data,
     cert: Data,
     server_name: Option(String),
@@ -20,8 +20,8 @@ pub type Data {
   File(content: bun.File)
 }
 
-pub fn new(key key: Data, cert cert: Data) -> TLS {
-  TLS(
+pub fn new(key key: Data, cert cert: Data) -> Tls {
+  Tls(
     key:,
     cert:,
     server_name: None,
@@ -33,32 +33,32 @@ pub fn new(key key: Data, cert cert: Data) -> TLS {
   )
 }
 
-pub fn passphrase(tls: TLS, passphrase: String) -> TLS {
+pub fn passphrase(tls: Tls, passphrase: String) -> Tls {
   let passphrase = Some(passphrase)
-  TLS(..tls, passphrase:)
+  Tls(..tls, passphrase:)
 }
 
-pub fn server_name(tls: TLS, server_name: String) -> TLS {
+pub fn server_name(tls: Tls, server_name: String) -> Tls {
   let server_name = Some(server_name)
-  TLS(..tls, server_name:)
+  Tls(..tls, server_name:)
 }
 
-pub fn reject_unauthorized(tls: TLS, reject_unauthorized: Bool) -> TLS {
+pub fn reject_unauthorized(tls: Tls, reject_unauthorized: Bool) -> Tls {
   let reject_unauthorized = Some(reject_unauthorized)
-  TLS(..tls, reject_unauthorized:)
+  Tls(..tls, reject_unauthorized:)
 }
 
-pub fn request_cert(tls: TLS, request_cert: Bool) -> TLS {
+pub fn request_cert(tls: Tls, request_cert: Bool) -> Tls {
   let request_cert = Some(request_cert)
-  TLS(..tls, request_cert:)
+  Tls(..tls, request_cert:)
 }
 
-pub fn ca(tls: TLS, ca: Data) -> TLS {
+pub fn ca(tls: Tls, ca: Data) -> Tls {
   let ca = Some(ca)
-  TLS(..tls, ca:)
+  Tls(..tls, ca:)
 }
 
-pub fn dh_params_file(tls: TLS, dh_params_file: String) -> TLS {
+pub fn dh_params_file(tls: Tls, dh_params_file: String) -> Tls {
   let dh_params_file = Some(dh_params_file)
-  TLS(..tls, dh_params_file:)
+  Tls(..tls, dh_params_file:)
 }

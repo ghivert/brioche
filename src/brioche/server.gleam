@@ -88,7 +88,7 @@ pub opaque type Config(context) {
     idle_timeout: Option(Int),
     port: Option(Int),
     static_routes: Option(List(#(String, Response))),
-    tls: Option(tls.TLS),
+    tls: Option(tls.Tls),
     unix: Option(String),
     websocket: Option(websocket.Config(context)),
   )
@@ -338,7 +338,7 @@ pub fn idle_timeout(
 ///   })
 /// }
 /// ```
-pub fn tls(options: Config(context), tls: tls.TLS) -> Config(context) {
+pub fn tls(options: Config(context), tls: tls.Tls) -> Config(context) {
   let tls = Some(tls)
   Config(..options, tls:)
 }
