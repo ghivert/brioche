@@ -7,45 +7,48 @@ import gleam/time/timestamp
 import gleeunit/should
 
 pub fn url_config_everything_test() {
-  let expected =
+  sql.url_config("postgres://u:p@db.test:1234/my_db")
+  |> should.be_ok
+  |> should.equal({
     sql.default_config()
     |> sql.host("db.test")
     |> sql.port(1234)
     |> sql.database("my_db")
     |> sql.user("u")
     |> sql.password(Some("p"))
-
-  sql.url_config("postgres://u:p@db.test:1234/my_db")
-  |> should.equal(Ok(expected))
+  })
 }
 
 pub fn url_config_alternative_postgres_protocol_test() {
-  let expected =
+  sql.url_config("postgresql://u:p@db.test:1234/my_db")
+  |> should.be_ok
+  |> should.equal({
     sql.default_config()
     |> sql.host("db.test")
     |> sql.port(1234)
     |> sql.database("my_db")
     |> sql.user("u")
     |> sql.password(Some("p"))
-  sql.url_config("postgresql://u:p@db.test:1234/my_db")
-  |> should.equal(Ok(expected))
+  })
 }
 
 pub fn url_config_not_postgres_protocol_test() {
   sql.url_config("foo://u:p@db.test:1234/my_db")
-  |> should.equal(Error(Nil))
+  |> should.be_error
+  |> should.equal(Nil)
 }
 
 pub fn url_config_no_password_test() {
-  let expected =
+  sql.url_config("postgres://u@db.test:1234/my_db")
+  |> should.be_ok
+  |> should.equal({
     sql.default_config()
     |> sql.host("db.test")
     |> sql.port(1234)
     |> sql.database("my_db")
     |> sql.user("u")
     |> sql.password(None)
-  sql.url_config("postgres://u@db.test:1234/my_db")
-  |> should.equal(Ok(expected))
+  })
 }
 
 pub fn url_config_no_port_test() {
@@ -62,12 +65,13 @@ pub fn url_config_no_port_test() {
 
 pub fn url_config_path_slash_test() {
   sql.url_config("postgres://u:p@db.test:1234/my_db/foo")
-  |> should.equal(Error(Nil))
+  |> should.be_error
+  |> should.equal(Nil)
 }
 
 fn start_default() {
-  let assert Ok(db) = sql.connect(default_config())
-  db
+  sql.connect(default_config())
+  |> should.be_ok
 }
 
 fn default_config() {
@@ -87,10 +91,11 @@ pub fn inserting_new_rows_test() {
   VALUES
     (DEFAULT, 'bill', true, ARRAY ['black'], now(), '2020-03-04'),
     (DEFAULT, 'felix', false, ARRAY ['grey'], now(), '2020-03-05')"
-  use returned <- await(sql.query(sql) |> sql.execute(db))
-  let assert Ok(returned) = returned
-  returned |> should.equal([])
-  sql.disconnect(db)
+  sql.query(sql)
+  |> sql.execute(db)
+  |> promise.map(should.be_ok)
+  |> promise.map(should.equal(_, []))
+  |> promise.await(fn(_) { sql.disconnect(db) })
 }
 
 pub fn inserting_new_rows_and_returning_test() {
@@ -107,11 +112,9 @@ pub fn inserting_new_rows_and_returning_test() {
   sql.query(sql)
   |> sql.returning(decode.at([0], decode.string))
   |> sql.execute(db)
-  |> await(fn(returned) {
-    let assert Ok(returned) = returned
-    returned |> should.equal(["bill", "felix"])
-    sql.disconnect(db)
-  })
+  |> promise.map(should.be_ok)
+  |> promise.map(should.equal(_, ["bill", "felix"]))
+  |> promise.await(fn(_) { sql.disconnect(db) })
 }
 
 pub fn selecting_rows_test() {
@@ -125,12 +128,14 @@ pub fn selecting_rows_test() {
     RETURNING
       id"
 
-  use returned <- await({
+  use id <- await({
     sql.query(sql)
     |> sql.returning(decode.at([0], decode.int))
     |> sql.execute(db)
+    |> promise.map(should.be_ok)
+    |> promise.map(list.first)
+    |> promise.map(should.be_ok)
   })
-  let assert Ok([id]) = returned
 
   use returned <- await({
     sql.query("SELECT * FROM cats WHERE id = $1")
@@ -145,9 +150,8 @@ pub fn selecting_rows_test() {
       decode.success(#(x0, x1, x2, x3, x4, x5))
     })
     |> sql.execute(db)
+    |> promise.map(should.be_ok)
   })
-
-  let assert Ok(returned) = returned
 
   let last_petted =
     timestamp.from_unix_seconds_and_nanoseconds(1_665_401_430, 100_000_000)
@@ -161,18 +165,19 @@ pub fn selecting_rows_test() {
 pub fn invalid_sql_test() {
   let db = start_default()
   let sql = "select       select"
-
-  use returned <- await(sql.query(sql) |> sql.execute(db))
-  let assert Error(Nil) = returned
-
-  // code
-  // |> should.equal("42601")
-  // name
-  // |> should.equal("syntax_error")
-  // message
-  // |> should.equal("syntax error at or near \"select\"")
-
-  sql.disconnect(db)
+  sql.query(sql)
+  |> sql.execute(db)
+  |> promise.map(should.be_error)
+  |> promise.map(fn(error) {
+    // code
+    // |> should.equal("42601")
+    // name
+    // |> should.equal("syntax_error")
+    // message
+    // |> should.equal("syntax error at or near \"select\"")
+    should.equal(error, Nil)
+  })
+  |> promise.await(fn(_) { sql.disconnect(db) })
 }
 
 // pub fn insert_constraint_error_test() {
@@ -261,27 +266,30 @@ fn assert_roundtrip(
   decoder: Decoder(a),
 ) -> Promise(sql.Connection) {
   use db <- await(db)
-  sql.query("select $1::" <> type_name)
-  |> sql.parameter(encoder(value))
-  |> sql.returning(decode.at([0], decoder))
-  |> sql.execute(db)
-  |> promise.map(fn(response) {
-    response |> should.equal(Ok([value]))
-    db
+  use result <- await({
+    sql.query("select $1::" <> type_name)
+    |> sql.parameter(encoder(value))
+    |> sql.returning(decode.at([0], decoder))
+    |> sql.execute(db)
   })
+  result
+  |> should.be_ok
+  |> should.equal([value])
+  promise.resolve(db)
 }
 
 pub fn null_test() {
   let db = start_default()
-  sql.query("select $1")
-  |> sql.parameter(sql.null())
-  |> sql.returning(decode.at([0], decode.optional(decode.int)))
-  |> sql.execute(db)
-  |> await(fn(response) {
-    response
-    |> should.equal(Ok([None]))
-    sql.disconnect(db)
+  use response <- await({
+    sql.query("select $1")
+    |> sql.parameter(sql.null())
+    |> sql.returning(decode.at([0], decode.optional(decode.int)))
+    |> sql.execute(db)
   })
+  response
+  |> should.be_ok
+  |> should.equal([None])
+  sql.disconnect(db)
 }
 
 pub fn bool_test() {
@@ -372,28 +380,20 @@ pub fn text_test() {
 // }
 
 pub fn datetime_test() {
+  let s = timestamp.from_unix_seconds(1000)
   start_default()
   |> promise.resolve
-  |> assert_roundtrip(
-    timestamp.from_unix_seconds(1000),
-    "timestamp",
-    sql.timestamp,
-    sql.timestamp_decoder(),
-  )
+  |> assert_roundtrip(s, "timestamp", sql.timestamp, sql.timestamp_decoder())
   |> promise.await(sql.disconnect)
 }
 
 pub fn nullable_test() {
   let txt = sql.nullable(_, sql.text)
   let int = sql.nullable(_, sql.int)
+  let hello = Some("Hello, Joe")
   start_default()
   |> promise.resolve
-  |> assert_roundtrip(
-    Some("Hello, Joe"),
-    "text",
-    txt,
-    decode.optional(decode.string),
-  )
+  |> assert_roundtrip(hello, "text", txt, decode.optional(decode.string))
   |> assert_roundtrip(None, "text", txt, decode.optional(decode.string))
   |> assert_roundtrip(Some(123), "int", int, decode.optional(decode.int))
   |> assert_roundtrip(None, "int", int, decode.optional(decode.int))
@@ -471,7 +471,8 @@ pub fn nullable_test() {
 
 pub fn expected_maps_test() {
   let db =
-    sql.Config(..default_config(), default_format: sql.Dict)
+    default_config()
+    |> sql.default_format(sql.Map)
     |> sql.connect
     |> should.be_ok
 
@@ -512,17 +513,9 @@ pub fn expected_maps_test() {
     |> promise.map(should.be_ok)
   })
 
-  returned
-  |> should.equal([
-    #(
-      id,
-      "neo",
-      True,
-      ["black"],
-      timestamp.from_unix_seconds(1_665_401_430),
-      timestamp.from_unix_seconds(1_583_280_000),
-    ),
-  ])
+  let petted = timestamp.from_unix_seconds(1_665_401_430)
+  let birthday = timestamp.from_unix_seconds(1_583_280_000)
+  returned |> should.equal([#(id, "neo", True, ["black"], petted, birthday)])
 
   sql.disconnect(db)
 }

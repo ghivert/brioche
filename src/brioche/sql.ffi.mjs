@@ -64,7 +64,7 @@ export async function runQuery(query, conn) {
     const [sql, format] = conn
     const parameters = query.parameters.toArray().reverse()
     const res =
-      format instanceof $sql.Dict
+      format instanceof $sql.Map
         ? await sql.unsafe(query.sql, parameters)
         : await sql.unsafe(query.sql, parameters).values()
     const rows = await res
@@ -72,8 +72,6 @@ export async function runQuery(query, conn) {
     const values = $gleam.List.fromArray(rows)
     return new $gleam.Ok(values)
   } catch (error) {
-    console.log(error.constructor)
-    console.log(error)
     return new $gleam.Error()
   }
 }

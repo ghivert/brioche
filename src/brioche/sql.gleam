@@ -74,7 +74,7 @@ pub opaque type Query(a) {
 }
 
 pub type Format {
-  Dict
+  Map
   Tuple
 }
 
