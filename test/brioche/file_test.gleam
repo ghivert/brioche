@@ -69,7 +69,7 @@ pub fn failing_delete_write_test() {
   use content <- promise.map(file.text(file))
   content
   |> should.be_error
-  |> should.equal(Nil)
+  |> should.equal(file.Enoent)
 }
 
 pub fn bitarray_delete_write_test() {

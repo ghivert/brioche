@@ -2,7 +2,7 @@ import brioche as bun
 import gleam/javascript/promise.{type Promise}
 import gleam/option.{type Option, None, Some}
 
-/// Config used to setup Bun's WebSockets. Config is opaque, and is created by
+/// Config used to setup Bun's WebSockets. Config can be created by
 /// using [`websocket.init`](#init). It is recommended for each WebSocket Config
 /// to have a text handler and a bytes handler. It can have multiple other options:
 /// - [`on_open`](#on_open), to set the `open` event handler.
@@ -31,13 +31,15 @@ import gleam/option.{type Option, None, Some}
 ///
 /// > Take note of the context type. That type is used to pass contextual data
 /// > to every WebSocket upon initialisation with `server.upgrade`.
-pub opaque type Config(context) {
+pub type Config(context) {
   Config(
-    text_message: Option(fn(bun.WebSocket(context), String) -> Promise(Nil)),
-    bytes_message: Option(fn(bun.WebSocket(context), BitArray) -> Promise(Nil)),
-    open: Option(fn(bun.WebSocket(context)) -> Promise(Nil)),
-    close: Option(fn(bun.WebSocket(context), Int, String) -> Promise(Nil)),
-    drain: Option(fn(bun.WebSocket(context)) -> Promise(Nil)),
+    on_text_message: Option(fn(bun.WebSocket(context), String) -> Promise(Nil)),
+    on_bytes_message: Option(
+      fn(bun.WebSocket(context), BitArray) -> Promise(Nil),
+    ),
+    on_open: Option(fn(bun.WebSocket(context)) -> Promise(Nil)),
+    on_close: Option(fn(bun.WebSocket(context), Int, String) -> Promise(Nil)),
+    on_drain: Option(fn(bun.WebSocket(context)) -> Promise(Nil)),
     max_payload_length: Option(Int),
     backpressure_limit: Option(Int),
     close_on_backpressure_limit: Option(Int),
@@ -86,11 +88,11 @@ pub type WebSocketSendStatus {
 /// ```
 pub fn init() {
   Config(
-    text_message: None,
-    bytes_message: None,
-    open: None,
-    close: None,
-    drain: None,
+    on_text_message: None,
+    on_bytes_message: None,
+    on_open: None,
+    on_close: None,
+    on_drain: None,
     max_payload_length: None,
     backpressure_limit: None,
     close_on_backpressure_limit: None,
@@ -136,8 +138,8 @@ pub fn on_open(
   config: Config(context),
   handler: fn(bun.WebSocket(context)) -> Promise(Nil),
 ) -> Config(context) {
-  let open = Some(handler)
-  Config(..config, open:)
+  let on_open = Some(handler)
+  Config(..config, on_open:)
 }
 
 /// WebSocket emits a `drain` message after a backpressure has been applied, and
@@ -176,8 +178,8 @@ pub fn on_drain(
   config: Config(context),
   handler: fn(bun.WebSocket(context)) -> Promise(Nil),
 ) -> Config(context) {
-  let drain = Some(handler)
-  Config(..config, drain:)
+  let on_drain = Some(handler)
+  Config(..config, on_drain:)
 }
 
 /// WebSocket emits a `close` message after the WebSocket has been closed,
@@ -227,8 +229,8 @@ pub fn on_close(
   config: Config(context),
   handler: fn(bun.WebSocket(context), Int, String) -> Promise(Nil),
 ) -> Config(context) {
-  let close = Some(handler)
-  Config(..config, close:)
+  let on_close = Some(handler)
+  Config(..config, on_close:)
 }
 
 /// WebSocket emits a `message` message after after receiving a message. A
@@ -276,8 +278,8 @@ pub fn on_text(
   config: Config(context),
   handler: fn(bun.WebSocket(context), String) -> Promise(Nil),
 ) -> Config(context) {
-  let text_message = Some(handler)
-  Config(..config, text_message:)
+  let on_text_message = Some(handler)
+  Config(..config, on_text_message:)
 }
 
 /// WebSocket emits a `message` message after after receiving a message. A
@@ -324,8 +326,8 @@ pub fn on_bytes(
   config: Config(context),
   handler: fn(bun.WebSocket(context), BitArray) -> Promise(Nil),
 ) -> Config(context) {
-  let bytes_message = Some(handler)
-  Config(..config, bytes_message:)
+  let on_bytes_message = Some(handler)
+  Config(..config, on_bytes_message:)
 }
 
 /// Define the maximum size of messages in bytes. \

@@ -172,12 +172,13 @@ function generateStatic(options) {
 function generateWebsocket(options) {
   const websocket = options.websocket[0]
   if (!websocket) return
-  const messageHandler = websocket.text_message[0] || websocket.bytes_message[0]
+  const messageHandler =
+    websocket.on_text_message[0] || websocket.on_bytes_message[0]
   return {
     message: !messageHandler ? undefined : generateMessageHandler(websocket),
-    open: websocket.open[0],
-    close: websocket.close[0],
-    drain: websocket.drain[0],
+    open: websocket.on_open[0],
+    close: websocket.on_close[0],
+    drain: websocket.on_drain[0],
     maxPayloadLength: websocket.max_payload_length[0],
     backpressureLimit: websocket.backpressure_limit[0],
     closeOnBackpressureLimit: websocket.close_on_backpressure_limit[0],
@@ -190,10 +191,10 @@ function generateWebsocket(options) {
 function generateMessageHandler(websocket) {
   return function (ws, message) {
     if (typeof message === 'string')
-      return websocket.text_message[0]?.(ws, message)
+      return websocket.on_text_message[0]?.(ws, message)
     if (message instanceof Uint8Array) {
       const data = $gleam.toBitArray(message)
-      return websocket.bytes_message[0]?.(ws, data)
+      return websocket.on_bytes_message[0]?.(ws, data)
     }
   }
 }

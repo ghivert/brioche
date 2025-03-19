@@ -68,31 +68,31 @@ pub type Body {
   Empty
 }
 
-/// Config used to setup a Bun's server. Config is opaque, and is created by
-/// using [`server.handler`](#handler). Every server must have a handler (even
-/// if a simple default "OK"), and can have a bunch of options:
-/// - [`development`](#development), to set the development mode. Defaults to `True`.
-/// - [`hostname`](#hostname), to set the hostname to listen to. Defaults to `"0.0.0.0"`.
-/// - [`idle_timeout`](#idle_timeout), to set the default timeout for a request.
-///   Defaults to `10`.
-/// - [`port`](#port), to set the port to listen to. Defaults to `3000`.
-/// - [`static_routes`](#static_routes), to define default static routes.
-/// - [`tls`](#tls), to define HTTPS options.
-/// - [`unix`](#unix), to listen to a Unix socket instead of HTTP.
-/// - [`websocket`](#websocket), to handle WebSockets connections.
+/// Config used to setup a Bun's server. Default Config is created by using
+/// [`server.handler`](#handler). Every server must have a handler (even
+/// if a simple default "OK"), and can have a bunch of options.
 ///
 /// > Take note of the context type. That type is used with WebSockets, to pass
 /// > contextual data to every WebSocket upon initialisation.
-pub opaque type Config(context) {
+pub type Config(context) {
   Config(
+    /// Set the development mode. Defaults to `True`.
     development: Bool,
+    /// Set the server handler.
     fetch: fn(Request, Server(context)) -> Promise(Response),
+    /// Set the hostname to listen to. Defaults to `"0.0.0.0"`.
     hostname: Option(String),
+    /// Set the default timeout for a request. Defaults to `10`.
     idle_timeout: Option(Int),
+    /// Set the port to listen to. Defaults to `3000`.
     port: Option(Int),
+    /// Define default static routes.
     static_routes: Option(List(#(String, Response))),
+    /// Define HTTPS options.
     tls: Option(tls.Tls),
+    /// Listen to a Unix socket instead of HTTP.
     unix: Option(String),
+    /// Handle WebSockets connections.
     websocket: Option(websocket.Config(context)),
   )
 }

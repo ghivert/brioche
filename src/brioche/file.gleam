@@ -63,8 +63,9 @@ pub type Stat {
 /// let my_file = file.new("/tmp/my/file/which/does/not/exist.txt")
 /// use file_size <- promise.await(file.stat(my_file))
 /// ```
+/// /// ```gleam
 @external(javascript, "./file.ffi.mjs", "stat")
-pub fn stat(file: File) -> Promise(Result(Stat, Nil))
+pub fn stat(file: File) -> Promise(Result(Stat, FileError))
 
 /// Indicates if the file exists or not. That operation never fails.
 ///
@@ -77,8 +78,9 @@ pub fn stat(file: File) -> Promise(Result(Stat, Nil))
 /// |> file.exists
 /// |> should.be_false
 /// ```
+/// /// ```gleam
 @external(javascript, "./file.ffi.mjs", "exists")
-pub fn exists(file: File) -> Promise(Result(Bool, Nil))
+pub fn exists(file: File) -> Promise(Result(Bool, FileError))
 
 /// Returns the mime type of the file. That operation never fails.
 ///
@@ -108,8 +110,9 @@ pub fn mime_type(file: File) -> String
 ///   Ok(csv) -> ...
 /// }
 /// ```
+/// /// ```gleam
 @external(javascript, "./file.ffi.mjs", "text")
-pub fn text(file: File) -> Promise(Result(String, Nil))
+pub fn text(file: File) -> Promise(Result(String, FileError))
 
 /// Reads the file as JSON. If the file does not exists, or if you lack rights
 /// to read, the operation may fail.
@@ -125,8 +128,9 @@ pub fn text(file: File) -> Promise(Result(String, Nil))
 ///   Ok(json) -> ...
 /// }
 /// ```
+/// /// ```gleam
 @external(javascript, "./file.ffi.mjs", "json")
-pub fn json(file: File) -> Promise(Result(decode.Dynamic, Nil))
+pub fn json(file: File) -> Promise(Result(decode.Dynamic, FileError))
 
 /// Reads the file as FormData. If the file does not exists, or if you lack rights
 /// to read, the operation may fail.
@@ -142,8 +146,9 @@ pub fn json(file: File) -> Promise(Result(decode.Dynamic, Nil))
 ///   Ok(form_data) -> ...
 /// }
 /// ```
+/// /// ```gleam
 @external(javascript, "./file.ffi.mjs", "formData")
-pub fn form_data(file: File) -> Promise(Result(FormData, Nil))
+pub fn form_data(file: File) -> Promise(Result(FormData, FileError))
 
 /// Reads the file as binary. If the file does not exists, or if you lack rights
 /// to read, the operation may fail.
@@ -159,8 +164,9 @@ pub fn form_data(file: File) -> Promise(Result(FormData, Nil))
 ///   Ok(csv) -> ...
 /// }
 /// ```
+/// /// ```gleam
 @external(javascript, "./file.ffi.mjs", "bytes")
-pub fn bytes(file: File) -> Promise(Result(BitArray, Nil))
+pub fn bytes(file: File) -> Promise(Result(BitArray, FileError))
 
 /// Deletes a file. If the file does not exists, or if you lack rights to delete
 /// it, the operation may fail.
@@ -176,8 +182,9 @@ pub fn bytes(file: File) -> Promise(Result(BitArray, Nil))
 ///   Ok(_) -> ...
 /// }
 /// ```
+/// /// ```gleam
 @external(javascript, "./file.ffi.mjs", "deleteFile")
-pub fn delete(file: File) -> Promise(Result(Nil, Nil))
+pub fn delete(file: File) -> Promise(Result(Nil, FileError))
 
 /// Write the text content in file. If the file does not exists it will be
 /// created. If you lack rights to write, the operation may fail.
@@ -193,8 +200,9 @@ pub fn delete(file: File) -> Promise(Result(Nil, Nil))
 ///   Ok(csv) -> ...
 /// }
 /// ```
+/// /// ```gleam
 @external(javascript, "./file.ffi.mjs", "write")
-pub fn write_text(file: File, data: String) -> Promise(Result(Int, Nil))
+pub fn write_text(file: File, data: String) -> Promise(Result(Int, FileError))
 
 /// Write the binary content in file. If the file does not exists it will be
 /// created. If you lack rights to write, the operation may fail.
@@ -210,8 +218,12 @@ pub fn write_text(file: File, data: String) -> Promise(Result(Int, Nil))
 ///   Ok(csv) -> ...
 /// }
 /// ```
+/// /// ```gleam
 @external(javascript, "./file.ffi.mjs", "writeBytes")
-pub fn write_bytes(file: File, data: BitArray) -> Promise(Result(Int, Nil))
+pub fn write_bytes(
+  file: File,
+  data: BitArray,
+) -> Promise(Result(Int, FileError))
 
 /// Helper to copy a file to another file. Fails if you lack rights, or if the
 /// original file does not exists.
@@ -227,8 +239,9 @@ pub fn write_bytes(file: File, data: BitArray) -> Promise(Result(Int, Nil))
 ///   Ok(size) -> ...
 /// }
 /// ```
+/// /// ```gleam
 @external(javascript, "./file.ffi.mjs", "copy")
-pub fn copy(file: File, to to: File) -> Promise(Result(Int, Nil))
+pub fn copy(file: File, to to: File) -> Promise(Result(Int, FileError))
 
 /// `FileSink` are a way to implement String builder. A String builder is a way
 /// to dynamically append data to files, like in streams. Take a look at
