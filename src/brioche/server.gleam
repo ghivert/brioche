@@ -60,6 +60,9 @@ pub type Body {
   Bytes(bytes: BitArray)
   /// Bun File. Lazy loaded file will be automatically read by the runtime, and
   /// sent to the user as the response, with the correct mime type and content.
+  /// If you provide an S3 File, a redirection will automatically be created
+  /// with a presigned URL. Because S3 Files are lazy loaded, this avoid to
+  /// download the file to your server and send it back to your users.
   File(file: brioche.File)
   /// Empty body. Used when generating a simple response, like [`ok`](#ok).
   Empty
