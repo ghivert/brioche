@@ -41,3 +41,28 @@ gleam_json = ">= 2.3.0 and < 3.0.0"
 [dev-dependencies]
 gleeunit = ">= 1.0.0 and < 2.0.0"
 ```
+
+## Features
+
+Faetures already-made, tested, and usable.
+
+- [x] Web server, with `brioche/server`.
+- [x] Websockets, with `brioche/websocket`.
+- [x] SQL, with `brioche/sql`.
+- [x] Bun.File, with `brioche/file`.
+- [x] Bun.FileSink, with `brioche/file_sink`.
+- [x] Semver, with `brioche/semver`.
+- [x] TLS, with `brioche/tls`.
+- [x] Utils, with `brioche`.
+
+Features remaining to implement.
+
+- [ ] S3
+- [ ] Streams
+- [ ] SQLite
+- [ ] TCP sockets
+- [ ] UDP sockets
+- [ ] $ shell
+- [ ] Child processes
+- [ ] Hashing
+- [ ] DNS
