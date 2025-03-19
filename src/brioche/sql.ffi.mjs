@@ -68,25 +68,51 @@ export async function runQuery(query, conn) {
         ? await sql.unsafe(query.sql, parameters)
         : await sql.unsafe(query.sql, parameters).values()
     const rows = await res
-    if (!Array.isArray(rows)) return new $gleam.Error()
     const values = $gleam.List.fromArray(rows)
-    return new $gleam.Ok(values)
+    return new $gleam.Ok(new $sql.Returned(values, rows.count))
   } catch (error) {
-    return new $gleam.Error()
+    const gleamError = convertError(error)
+    return new $gleam.Error(gleamError)
   }
+}
+
+export function byteaify(value) {
+  return value.rawBuffer
+}
+
+function convertError(error) {
+  if (error.constraint) {
+    const message = error.message
+    const constraint = error.constraint
+    const detail = error.detail
+    return new $sql.ConstraintViolated(message, constraint, detail)
+  }
+
+  const code = error.errno
+  const name = $sql.error_code_name(error.errno)[0]
+  return new $sql.PostgresqlError(code, name, error.message)
 }
 
 export async function transaction(conn, handler) {
   const [connection, format] = conn
-  return await connection.begin(async tx => {
-    return handler([tx, format])
-  })
+  try {
+    return await connection.begin(async tx => {
+      const result = await handler([tx, format])
+      if (result instanceof $gleam.Ok) return result
+      const error = new Error()
+      error.attached = result[0]
+      throw error
+    })
+  } catch (error) {
+    if (error.attached) return new $gleam.Error(error.attached)
+    return new $gleam.Error(new $sql.TransactionRolledBack(error.message))
+  }
 }
 
 export async function savepoint(conn, handler) {
   const [connection, format] = conn
   return await connection.savepoint(async tx => {
-    return handler([tx, format])
+    return await handler([tx, format])
   })
 }
 

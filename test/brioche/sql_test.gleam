@@ -6,6 +6,10 @@ import gleam/option.{None, Some}
 import gleam/time/timestamp
 import gleeunit/should
 
+fn rows(ret: sql.Returned(a)) {
+  ret.rows
+}
+
 pub fn url_config_everything_test() {
   sql.url_config("postgres://u:p@db.test:1234/my_db")
   |> should.be_ok
@@ -94,6 +98,7 @@ pub fn inserting_new_rows_test() {
   sql.query(sql)
   |> sql.execute(db)
   |> promise.map(should.be_ok)
+  |> promise.map(rows)
   |> promise.map(should.equal(_, []))
   |> promise.await(fn(_) { sql.disconnect(db) })
 }
@@ -113,6 +118,7 @@ pub fn inserting_new_rows_and_returning_test() {
   |> sql.returning(decode.at([0], decode.string))
   |> sql.execute(db)
   |> promise.map(should.be_ok)
+  |> promise.map(rows)
   |> promise.map(should.equal(_, ["bill", "felix"]))
   |> promise.await(fn(_) { sql.disconnect(db) })
 }
@@ -133,6 +139,7 @@ pub fn selecting_rows_test() {
     |> sql.returning(decode.at([0], decode.int))
     |> sql.execute(db)
     |> promise.map(should.be_ok)
+    |> promise.map(rows)
     |> promise.map(list.first)
     |> promise.map(should.be_ok)
   })
@@ -156,7 +163,7 @@ pub fn selecting_rows_test() {
   let last_petted =
     timestamp.from_unix_seconds_and_nanoseconds(1_665_401_430, 100_000_000)
   let birthday = timestamp.from_unix_seconds(1_583_280_000)
-  returned
+  returned.rows
   |> should.equal([#(id, "neo", True, ["black"], last_petted, birthday)])
 
   sql.disconnect(db)
@@ -169,94 +176,87 @@ pub fn invalid_sql_test() {
   |> sql.execute(db)
   |> promise.map(should.be_error)
   |> promise.map(fn(error) {
-    // code
-    // |> should.equal("42601")
-    // name
-    // |> should.equal("syntax_error")
-    // message
-    // |> should.equal("syntax error at or near \"select\"")
-    should.equal(error, Nil)
+    let assert sql.PostgresqlError(code:, name:, message:) = error
+    code |> should.equal("42601")
+    name |> should.equal("syntax_error")
+    message |> should.equal("syntax error at or near \"select\"")
   })
   |> promise.await(fn(_) { sql.disconnect(db) })
 }
 
-// pub fn insert_constraint_error_test() {
-//   let db = start_default()
-//   let sql =
-//     "
-//     INSERT INTO
-//       cats
-//     VALUES
-//       (900, 'bill', true, ARRAY ['black'], now(), '2020-03-04'),
-//       (900, 'felix', false, ARRAY ['black'], now(), '2020-03-05')"
+pub fn insert_constraint_error_test() {
+  let db = start_default()
+  "INSERT INTO
+    cats
+  VALUES
+    (900, 'bill', true, ARRAY ['black'], now(), '2020-03-04'),
+    (900, 'felix', false, ARRAY ['black'], now(), '2020-03-05')"
+  |> sql.query
+  |> sql.execute(db)
+  |> promise.map(should.be_error)
+  |> promise.map(fn(error) {
+    let assert sql.ConstraintViolated(message, constraint, detail) = error
+    constraint |> should.equal("cats_pkey")
+    detail |> should.equal("Key (id)=(900) already exists.")
+    message
+    |> should.equal(
+      "duplicate key value violates unique constraint \"cats_pkey\"",
+    )
+  })
+  |> promise.await(fn(_) { sql.disconnect(db) })
+}
 
-//   let assert Error(sql.ConstraintViolated(message, constraint, detail)) =
-//     sql.query(sql) |> sql.execute(db)
+pub fn select_from_unknown_table_test() {
+  let db = start_default()
+  let sql = "SELECT * FROM unknown"
 
-//   constraint
-//   |> should.equal("cats_pkey")
+  sql.query(sql)
+  |> sql.execute(db)
+  |> promise.map(should.be_error)
+  |> promise.map(fn(error) {
+    let assert sql.PostgresqlError(code, name, message) = error
+    code |> should.equal("42P01")
+    name |> should.equal("undefined_table")
+    message |> should.equal("relation \"unknown\" does not exist")
+  })
+  |> promise.await(fn(_) { sql.disconnect(db) })
+}
 
-//   detail
-//   |> should.equal("Key (id)=(900) already exists.")
+pub fn insert_with_incorrect_type_test() {
+  let db = start_default()
+  "INSERT INTO
+    cats
+  VALUES
+    (true, true, true, true)"
+  |> sql.query
+  |> sql.execute(db)
+  |> promise.map(should.be_error)
+  |> promise.map(fn(error) {
+    let assert sql.PostgresqlError(code, name, message) = error
+    code |> should.equal("42804")
+    name |> should.equal("datatype_mismatch")
+    message
+    |> should.equal(
+      "column \"id\" is of type integer but expression is of type boolean",
+    )
+  })
+  |> promise.await(fn(_) { sql.disconnect(db) })
+}
 
-//   message
-//   |> should.equal(
-//     "duplicate key value violates unique constraint \"cats_pkey\"",
-//   )
-
-//   sql.disconnect(db)
-// }
-
-// pub fn select_from_unknown_table_test() {
-//   let db = start_default()
-//   let sql = "SELECT * FROM unknown"
-
-//   let assert Error(sql.PostgresqlError(code, name, message)) =
-//     sql.query(sql) |> sql.execute(db)
-
-//   code
-//   |> should.equal("42P01")
-//   name
-//   |> should.equal("undefined_table")
-//   message
-//   |> should.equal("relation \"unknown\" does not exist")
-
-//   sql.disconnect(db)
-// }
-
-// pub fn insert_with_incorrect_type_test() {
-//   let db = start_default()
-//   let sql =
-//     "
-//       INSERT INTO
-//         cats
-//       VALUES
-//         (true, true, true, true)"
-//   let assert Error(sql.PostgresqlError(code, name, message)) =
-//     sql.query(sql) |> sql.execute(db)
-
-//   code
-//   |> should.equal("42804")
-//   name
-//   |> should.equal("datatype_mismatch")
-//   message
-//   |> should.equal(
-//     "column \"id\" is of type integer but expression is of type boolean",
-//   )
-
-//   sql.disconnect(db)
-// }
-
-// pub fn execute_with_wrong_number_of_arguments_test() {
-//   let db = start_default()
-//   let sql = "SELECT * FROM cats WHERE id = $1"
-
-//   sql.query(sql)
-//   |> sql.execute(db)
-//   |> should.equal(Error(sql.UnexpectedArgumentCount(expected: 1, got: 0)))
-
-//   sql.disconnect(db)
-// }
+pub fn execute_with_wrong_number_of_arguments_test() {
+  let db = start_default()
+  "SELECT * FROM cats WHERE id = $1"
+  |> sql.query
+  |> sql.execute(db)
+  |> promise.map(should.be_error)
+  |> promise.map(fn(error) {
+    let assert sql.PostgresqlError(code, name, message) = error
+    code |> should.equal("42P02")
+    name |> should.equal("undefined_parameter")
+    message |> should.equal("there is no parameter $1")
+  })
+  |> promise.await(fn(_) { sql.disconnect(db) })
+}
 
 fn assert_roundtrip(
   db: Promise(sql.Connection),
@@ -274,6 +274,7 @@ fn assert_roundtrip(
   })
   result
   |> should.be_ok
+  |> rows
   |> should.equal([value])
   promise.resolve(db)
 }
@@ -288,6 +289,7 @@ pub fn null_test() {
   })
   response
   |> should.be_ok
+  |> rows
   |> should.equal([None])
   sql.disconnect(db)
 }
@@ -347,21 +349,17 @@ pub fn text_test() {
   |> promise.await(sql.disconnect)
 }
 
-// pub fn bytea_test() {
-//   start_default()
-//   |> promise.resolve
-//   |> assert_roundtrip(<<"":utf8>>, "bytea", sql.bytea, decode.bit_array)
-//   |> assert_roundtrip(<<"✨":utf8>>, "bytea", sql.bytea, decode.bit_array)
-//   |> assert_roundtrip(
-//     <<"Hello, Joe!":utf8>>,
-//     "bytea",
-//     sql.bytea,
-//     decode.bit_array,
-//   )
-//   |> assert_roundtrip(<<1>>, "bytea", sql.bytea, decode.bit_array)
-//   |> assert_roundtrip(<<1, 2, 3>>, "bytea", sql.bytea, decode.bit_array)
-//   |> promise.await(sql.disconnect)
-// }
+pub fn bytea_test() {
+  let hi = <<"Hello, Joe!":utf8>>
+  start_default()
+  |> promise.resolve
+  |> assert_roundtrip(<<"":utf8>>, "bytea", sql.bytea, decode.bit_array)
+  |> assert_roundtrip(<<"✨":utf8>>, "bytea", sql.bytea, decode.bit_array)
+  |> assert_roundtrip(hi, "bytea", sql.bytea, decode.bit_array)
+  |> assert_roundtrip(<<1>>, "bytea", sql.bytea, decode.bit_array)
+  |> assert_roundtrip(<<1, 2, 3>>, "bytea", sql.bytea, decode.bit_array)
+  |> promise.await(sql.disconnect)
+}
 
 // pub fn array_test() {
 //   let decoder = decode.list(decode.string)
@@ -400,74 +398,35 @@ pub fn nullable_test() {
   |> promise.await(sql.disconnect)
 }
 
-// pub fn expected_argument_type_test() {
-//   let db = start_default()
+pub fn expected_argument_type_test() {
+  let db = start_default()
+  sql.query("select $1::int")
+  |> sql.returning(decode.at([0], decode.string))
+  |> sql.parameter(sql.text("1.2"))
+  |> sql.execute(db)
+  |> promise.map(should.be_error)
+  |> promise.map(fn(error) {
+    let assert sql.PostgresqlError(code, name, message) = error
+    code |> should.equal("22P02")
+    name |> should.equal("invalid_text_representation")
+    message |> should.equal("invalid input syntax for type integer: \"1.2\"")
+  })
+  |> promise.await(fn(_) { sql.disconnect(db) })
+}
 
-//   sql.query("select $1::int")
-//   |> sql.returning(decode.at([0], decode.string))
-//   |> sql.parameter(sql.float(1.2))
-//   |> sql.execute(db)
-//   |> should.equal(Error(sql.UnexpectedArgumentType("int4", "1.2")))
-
-//   sql.disconnect(db)
-// }
-
-// pub fn expected_return_type_test() {
-//   let db = start_default()
-//   sql.query("select 1")
-//   |> sql.returning(decode.at([0], decode.string))
-//   |> sql.execute(db)
-//   |> should.equal(
-//     Error(
-//       sql.UnexpectedResultType([
-//         decode.DecodeError(expected: "String", found: "Int", path: ["0"]),
-//       ]),
-//     ),
-//   )
-
-//   sql.disconnect(db)
-// }
-
-// pub fn expected_five_millis_timeout_test() {
-//   use <- run_with_timeout(20)
-//   let db = start_default()
-
-//   sql.query("select sub.ret from (select pg_sleep(0.05), 'OK' as ret) as sub")
-//   |> sql.timeout(5)
-//   |> sql.returning(decode.at([0], decode.string))
-//   |> sql.execute(db)
-//   |> should.equal(Error(sql.QueryTimeout))
-
-//   sql.disconnect(db)
-// }
-
-// pub fn expected_ten_millis_no_timeout_test() {
-//   use <- run_with_timeout(20)
-//   let db = start_default()
-
-//   sql.query("select sub.ret from (select pg_sleep(0.01), 'OK' as ret) as sub")
-//   |> sql.timeout(30)
-//   |> sql.returning(decode.at([0], decode.string))
-//   |> sql.execute(db)
-//   |> should.equal(Ok(sql.Returned(1, ["Ok"])))
-
-//   sql.disconnect(db)
-// }
-
-// pub fn expected_ten_millis_no_default_timeout_test() {
-//   use <- run_with_timeout(20)
-//   let db =
-//     default_config()
-//     |> sql.default_timeout(30)
-//     |> sql.connect
-
-//   sql.query("select sub.ret from (select pg_sleep(0.01), 'OK' as ret) as sub")
-//   |> sql.returning(decode.at([0], decode.string))
-//   |> sql.execute(db)
-//   |> should.equal(Ok(sql.Returned(1, ["Ok"])))
-
-//   sql.disconnect(db)
-// }
+pub fn expected_return_type_test() {
+  let db = start_default()
+  sql.query("select 1")
+  |> sql.returning(decode.at([0], decode.string))
+  |> sql.execute(db)
+  |> promise.map(should.be_error)
+  |> promise.map(fn(error) {
+    [decode.DecodeError(expected: "String", found: "Int", path: ["0"])]
+    |> sql.UnexpectedResultType
+    |> should.equal(error, _)
+  })
+  |> promise.await(fn(_) { sql.disconnect(db) })
+}
 
 pub fn expected_maps_test() {
   let db =
@@ -476,20 +435,18 @@ pub fn expected_maps_test() {
     |> sql.connect
     |> should.be_ok
 
-  let sql =
-    "
-    INSERT INTO
+  use id <- await({
+    "INSERT INTO
       cats
     VALUES
       (DEFAULT, 'neo', true, ARRAY ['black'], '2022-10-10 11:30:30', '2020-03-04')
     RETURNING
       id"
-
-  use id <- await({
-    sql.query(sql)
+    |> sql.query
     |> sql.returning(decode.at(["id"], decode.int))
     |> sql.execute(db)
     |> promise.map(should.be_ok)
+    |> promise.map(rows)
     |> promise.map(list.first)
     |> promise.map(should.be_ok)
   })
@@ -515,7 +472,8 @@ pub fn expected_maps_test() {
 
   let petted = timestamp.from_unix_seconds(1_665_401_430)
   let birthday = timestamp.from_unix_seconds(1_583_280_000)
-  returned |> should.equal([#(id, "neo", True, ["black"], petted, birthday)])
+  returned.rows
+  |> should.equal([#(id, "neo", True, ["black"], petted, birthday)])
 
   sql.disconnect(db)
 }
@@ -540,6 +498,7 @@ pub fn transaction_commit_test() {
     |> sql.returning(id_decoder)
     |> sql.execute(db)
     |> promise.map(should.be_ok)
+    |> promise.map(rows)
     |> promise.map(list.first)
     |> promise.map(should.be_ok)
   }
@@ -550,27 +509,31 @@ pub fn transaction_commit_test() {
     sql.transaction(db, fn(db) {
       use id1 <- await(insert(db, "one"))
       use id2 <- await(insert(db, "two"))
-      promise.resolve(#(id1, id2))
+      promise.resolve(Ok(#(id1, id2)))
     })
+    |> promise.map(should.be_ok)
   })
 
   // An error returning transaction, it gets rolled back
-  // let assert Error(sql.TransactionRolledBack("Nah bruv!")) =
-  //   sql.transaction(db, fn(db) {
-  //     let _id1 = insert(db, "two")
-  //     let _id2 = insert(db, "three")
-  //     Error("Nah bruv!")
-  //   })
+  use result <- await({
+    sql.transaction(db, fn(db) {
+      use _id1 <- await(insert(db, "two"))
+      use _id2 <- await(insert(db, "three"))
+      promise.resolve(Error(sql.TransactionRolledBack("Nah bruv!")))
+    })
+  })
+  result
+  |> should.be_error
+  |> should.equal(sql.TransactionRolledBack("Nah bruv!"))
 
   // A crashing transaction, it gets rolled back
-  // let _ =
-  //   exception.rescue(fn() {
-  //     sql.transaction(db, fn(db) {
-  //       let _id1 = insert(db, "four")
-  //       let _id2 = insert(db, "five")
-  //       panic as "testing rollbacks"
-  //     })
-  //   })
+  use _ <- await({
+    sql.transaction(db, fn(db) {
+      let _id1 = insert(db, "four")
+      let _id2 = insert(db, "five")
+      panic as "testing rollbacks"
+    })
+  })
 
   use returned <- await({
     sql.query("select id from cats order by id")
@@ -578,7 +541,7 @@ pub fn transaction_commit_test() {
     |> sql.execute(db)
   })
 
-  let assert Ok([got1, got2]) = returned
+  let assert Ok(sql.Returned(rows: [got1, got2], ..)) = returned
   let assert True = id1 == got1
   let assert True = id2 == got2
 
