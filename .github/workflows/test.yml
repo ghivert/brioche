@@ -38,4 +38,9 @@ jobs:
           PGPASSWORD: postgres
           PGUSER: postgres
       - run: gleam test
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGPASSWORD: postgres
+          PGUSER: postgres
       - run: gleam format --check src test
