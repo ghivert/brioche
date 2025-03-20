@@ -7,6 +7,12 @@ providing easy-to-use, opinionated, gleamy bindings on Bun. Writing Gleam
 JavaScript & Bun code has never been easier, and no bindings are required for
 main features for Bun.
 
+> [!NOTE]
+>
+> Brioche is still not production-ready, and as such, is not in 1.x.y version!
+> Brioche is used at Steerlab, but not guarantee can be provided. Use it at your
+> own risk.
+
 ## Opinions
 
 While Bun is a JavaScript runtime, Brioche does no try to provide 1:1 API.
