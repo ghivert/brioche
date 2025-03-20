@@ -28,6 +28,8 @@
 //// hash.crc32("my-data")
 //// hash.city_hash64("my-data")
 //// ```
+////
+//// [Bun Documentation](https://bun.sh/docs/api/hashing#bun-hash)
 
 import bigi.{type BigInt}
 

@@ -1,3 +1,22 @@
+//// Bun implements a fast, native PostgreSQL Client, built in the runtime.
+//// Bun does not provides any ORM or whatever on top of Postgres: Bun provides
+//// a Postgres client speaking SQL, and nothing else.
+////
+//// To simplify usage of `brioche/sql`, and to help interoperability with the
+//// rest of the Gleam ecosystem, `brioche/sql` does not try to reinvent its own
+//// API and tries to stick with what [`pog`](https://hexdocs.pm/pog) does! If
+//// you know how to write SQL queries with `pog`, you'll feel right at home!
+//// Be careful though, because of the nature of the JavaScript runtime, and
+//// because of some limitations, `brioche/sql` does not implement exactly the
+//// same API that `pog`, especially with dates & timestamps. Every dates and
+//// timestamps are managed as
+//// [`gleam/time/timestamp.Timestamp`](https://hexdocs.pm/gleam_time/gleam/time/timestamp.html#Timestamp)
+//// and some options could differ. However, your daily experience should be
+//// really close!
+////
+//// Thanks a lot to Louis Pilfold & all other `pog` contributors for their
+//// awesome work!
+
 import brioche/tls
 import gleam/dynamic/decode.{type Decoder}
 import gleam/javascript/promise.{type Promise}
@@ -10,40 +29,48 @@ import gleam/uri
 
 pub type Config {
   Config(
-    /// Database server hostname
-    host: String,
-    /// Database server port number
-    port: Int,
-    /// Database user for authentication
-    user: String,
-    /// Database password for authentication
+    /// Database server hostname. Defaults to `PGHOST` if not defined.
+    host: Option(String),
+    /// Database server port number. Defaults to `PGPORT` if not defined.
+    port: Option(Int),
+    /// Database user for authentication. Defaults to `PGUSER`, `PGUSERNAME`,
+    /// `USER` or `USERNAME` if not defined.
+    user: Option(String),
+    /// Database password for authentication. Defaults to `PGPASSWORD` if
+    /// not defined.
     password: Option(String),
-    /// Name of the database to connect to
-    database: String,
-    /// Maximum time in seconds to wait for connection to become available (alias for idleTimeout)
+    /// Name of the database to connect to. Defaults to `PGDATABASE` if not
+    /// defined.
+    database: Option(String),
+    /// Maximum time in seconds to wait for connection to become available.
     idle_timeout: Option(Int),
-    /// Maximum time in seconds to wait when establishing a connection
+    /// Maximum time in seconds to wait when establishing a connection.
     connection_timeout: Option(Int),
-    /// Maximum lifetime in seconds of a connection
+    /// Maximum lifetime in seconds of a connection.
     max_lifetime: Option(Int),
-    /// Whether to use TLS/SSL for the connection
-    ssl: Ssl,
-    /// Callback function executed when a connection is established
+    /// Whether to use TLS/SSL for the connection.
+    ssl: Option(Ssl),
+    /// Callback function executed when a connection is established.
     onconnect: Option(fn(Connection) -> Nil),
-    /// Callback function executed when a connection is closed
+    /// Callback function executed when a connection is closed.
     onclose: Option(fn(Connection) -> Nil),
-    /// Maximum Int of connections in the pool
+    /// Maximum Int of connections in the pool.
     max: Option(Int),
-    /// By default values outside i32 range are returned as strings. If this is true, values outside i32 range are returned as BigInts.
+    /// By default values outside i32 range are returned as strings. If this is
+    /// true, values outside i32 range are returned as BigInts. You can use the
+    /// `bigi` package to work with BigInt.
     bigint: Option(Bool),
-    /// Automatic creation of prepared statements, defaults to true
+    /// Automatic creation of prepared statements, defaults to true.
     prepare: Option(Bool),
-    /// Default format.
+    /// Default format to use, when returning the results.
     default_format: Format,
   )
 }
 
 // Connection is #(Bun.SQL, Format).
+/// A Connection represents a open connection to Postgres, managing a pool
+/// of database connections for you. You can open a database connection with
+/// [`connect`](#connect).
 pub type Connection
 
 pub type Ssl {
@@ -64,6 +91,8 @@ pub type Ssl {
   SslDisabled
 }
 
+/// Represents an SQL query, ready to be executed. A query is immutable and can
+/// be executed an arbitrary number of times.
 pub opaque type Query(a) {
   Query(
     sql: String,
@@ -73,24 +102,35 @@ pub opaque type Query(a) {
   )
 }
 
+/// Output format for the query results. `Map` will output the result as a
+/// hashmap, while `Tuple` will output the results as a tuple.
+///
+/// Write your decoders according to the format you desire. The format has a
+/// default for every connection, but can also be overriden on a per-request
+/// basis.
 pub type Format {
   Map
   Tuple
 }
 
+/// Parameter sent in a request. Convert your data to `Value` to use them as
+/// parameters in SQL requests.
 pub type Value
 
+/// Generate a default config. If the config is completely empty, Bun will
+/// automatically read, by order of precedence: `POSTGRES_URL`, `DATABASE_URL`,
+/// `PGURL`, `PG_URL`, `TLS_POSTGRES_DATABASE_URL` & `TLS_DATABASE_URL`.
 pub fn default_config() {
   Config(
-    host: "127.0.0.1",
-    port: 5432,
-    user: "postgres",
+    host: option.None,
+    port: option.None,
+    user: option.None,
     password: option.None,
-    database: "postgres",
+    database: option.None,
     idle_timeout: option.None,
     connection_timeout: option.None,
     max_lifetime: option.None,
-    ssl: SslDisabled,
+    ssl: option.None,
     onconnect: option.None,
     onclose: option.None,
     max: option.None,
@@ -100,66 +140,93 @@ pub fn default_config() {
   )
 }
 
+/// Database server hostname. Defaults to `PGHOST` if not defined.
 pub fn host(config: Config, host: String) {
+  let host = option.Some(host)
   Config(..config, host:)
 }
 
+/// Database server port number. Defaults to `PGPORT` if not defined.
 pub fn port(config: Config, port: Int) {
+  let port = option.Some(port)
   Config(..config, port:)
 }
 
+/// Database user for authentication. Defaults to `PGUSER`, `PGUSERNAME`,
+/// `USER` or `USERNAME` if not defined.
 pub fn user(config: Config, user: String) {
+  let user = option.Some(user)
   Config(..config, user:)
 }
 
+/// Database password for authentication. Defaults to `PGPASSWORD` if
+/// not defined.
 pub fn password(config: Config, password: Option(String)) {
   Config(..config, password:)
 }
 
+/// Name of the database to connect to. Defaults to `PGDATABASE` if not
+/// defined.
 pub fn database(config: Config, database: String) {
+  let database = option.Some(database)
   Config(..config, database:)
 }
 
+/// Maximum time in seconds to wait for connection to become available.
 pub fn idle_timeout(config: Config, idle_timeout: Int) {
   Config(..config, idle_timeout: option.Some(idle_timeout))
 }
 
+/// Maximum time in seconds to wait when establishing a connection.
 pub fn connection_timeout(config: Config, connection_timeout: Int) {
   Config(..config, connection_timeout: option.Some(connection_timeout))
 }
 
+/// Maximum lifetime in seconds of a connection.
 pub fn max_lifetime(config: Config, max_lifetime: Int) {
   Config(..config, max_lifetime: option.Some(max_lifetime))
 }
 
-pub fn tls(config: Config, tls: tls.Tls) {
-  Config(..config, ssl: SslCustom(tls))
+/// Whether to use TLS/SSL for the connection.
+pub fn ssl(config: Config, tls: tls.Tls) {
+  Config(..config, ssl: option.Some(SslCustom(tls)))
 }
 
+/// Callback function executed when a connection is established.
 pub fn onconnect(config: Config, onconnect: fn(Connection) -> Nil) {
   Config(..config, onconnect: option.Some(onconnect))
 }
 
+/// Callback function executed when a connection is closed.
 pub fn onclose(config: Config, onclose: fn(Connection) -> Nil) {
   Config(..config, onclose: option.Some(onclose))
 }
 
+/// Maximum Int of connections in the pool.
 pub fn max(config: Config, max: Int) {
   Config(..config, max: option.Some(max))
 }
 
+/// By default values outside i32 range are returned as strings. If this is
+/// true, values outside i32 range are returned as BigInts. You can use the
+/// `bigi` package to work with BigInt.
 pub fn bigint(config: Config, bigint: Bool) {
   Config(..config, bigint: option.Some(bigint))
 }
 
+/// Automatic creation of prepared statements, defaults to true.
 pub fn prepare(config: Config, prepare: Bool) {
   Config(..config, prepare: option.Some(prepare))
 }
 
+/// Default format to use, when returning the results.
 pub fn default_format(config: Config, default_format: Format) {
   Config(..config, default_format:)
 }
 
+/// Read a URL config, and convert it as a `Config` data. Use this when you
+/// don't want Bun to automatically read the environment variable of URL config,
+/// or when you need to add some additional configuration.
 pub fn url_config(database_url: String) -> Result(Config, Nil) {
   use uri <- result.then(uri.parse(database_url))
   let uri = case uri.port {
@@ -190,10 +257,10 @@ pub fn url_config(database_url: String) -> Result(Config, Nil) {
       Ok(
         Config(
           ..default_config(),
-          host:,
-          port: db_port,
-          database:,
-          user:,
+          host: option.Some(host),
+          port: option.Some(db_port),
+          database: option.Some(database),
+          user: option.Some(user),
           password:,
           ssl:,
         ),
@@ -218,66 +285,95 @@ fn extract_user_password(
 /// If `sslmode` is `verify-ca` or `verify-full`, returns `SslVerified`.
 /// If `sslmode` is `require`, returns `SslUnverified`.
 /// If `sslmode` is unset, returns `SslDisabled`.
-fn extract_ssl_mode(query: option.Option(String)) -> Result(Ssl, Nil) {
+fn extract_ssl_mode(query: option.Option(String)) -> Result(Option(Ssl), Nil) {
   case query {
-    option.None -> Ok(SslDisabled)
+    option.None -> Ok(option.None)
     option.Some(query) -> {
       use query <- result.then(uri.parse_query(query))
       use sslmode <- result.then(list.key_find(query, "sslmode"))
       case sslmode {
-        "require" -> Ok(SslEnabled)
-        "verify-ca" | "verify-full" -> Ok(SslEnabled)
-        "disable" -> Ok(SslDisabled)
+        "require" -> Ok(option.Some(SslEnabled))
+        "verify-ca" | "verify-full" -> Ok(option.Some(SslEnabled))
+        "disable" -> Ok(option.Some(SslDisabled))
         _ -> Error(Nil)
       }
     }
   }
 }
 
+/// Connect to the database. Fails with an error when something goes wrong.
 @external(javascript, "./sql.ffi.mjs", "connect")
-pub fn connect(config: Config) -> Result(Connection, Nil)
+pub fn connect(config: Config) -> Result(Connection, decode.Dynamic)
 
+/// Create a query from an SQL string. You can use positional parameters in the
+/// query, and chain the query call to add parameters or decoder.
+///
+/// ```gleam
+/// import brioche/sql
+/// let assert Ok(client) = sql.client(sql.default_config())
+/// sql.query("SELECT $1")
+/// |> sql.parameter(sql.float(1.0))
+/// |> sql.returning(decode.at([0], decode.float))
+/// |> sql.execute(client)
+/// ```
 pub fn query(sql: String) -> Query(decode.Dynamic) {
   Query(sql:, parameters: [], format: option.None, expecting: decode.dynamic)
 }
 
+/// Add a parameter to the request. First parameter will be matched with `$1`,
+/// second with `$2` and so on.
 pub fn parameter(query: Query(a), value: Value) -> Query(a) {
   let parameters = [value, ..query.parameters]
   Query(..query, parameters:)
 }
 
+/// Modify the expecting return type of the query. Every data row of the
+/// response will be run against the decoder to get a correct data type as a
+/// response.
 pub fn returning(query: Query(a), decoder: decode.Decoder(b)) -> Query(b) {
   Query(..query, expecting: decoder)
 }
 
+/// Modify the expected output format. Use it to override the `default_format`
+/// in the configuration if needed.
 pub fn format(query: Query(a), format: Format) -> Query(a) {
   Query(..query, format: option.Some(format))
 }
 
+/// Convert an int as an SQL value. Escape the value if needed.
 @external(javascript, "./sql.ffi.mjs", "coerce")
 pub fn int(int: Int) -> Value
 
+/// Convert a float as an SQL value. Escape the value if needed.
 @external(javascript, "./sql.ffi.mjs", "coerce")
 pub fn float(float: Float) -> Value
 
+/// Convert a string as an SQL value. Escape the value if needed.
 @external(javascript, "./sql.ffi.mjs", "coerce")
 pub fn text(text: String) -> Value
 
+/// Convert a bool as an SQL value. Escape the value if needed.
 @external(javascript, "./sql.ffi.mjs", "coerce")
 pub fn bool(bool: Bool) -> Value
 
+/// Convert a binary as an SQL value. Escape the value if needed.
 @external(javascript, "./sql.ffi.mjs", "byteaify")
 pub fn bytea(byte_array: BitArray) -> Value
 
+/// Create the SQL value `NULL`.
 @external(javascript, "./sql.ffi.mjs", "nullify")
 pub fn null() -> Value
 
+/// Convert an `Option(a)`, whether as `NULL` or as the data. Escape the value
+/// if needed.
 @external(javascript, "./sql.ffi.mjs", "maybeCoerce")
 pub fn nullable(value: Option(a), mapper: fn(a) -> Value) -> Value
 
+/// Convert a `List(a)` as its equivalent SQL array. Escape the value if needed.
 @external(javascript, "./sql.ffi.mjs", "listCoerce")
 pub fn array(value: List(a), mapper: fn(a) -> Value) -> Value
 
+/// Convert a timestamp as an SQL value. Escape the value if needed.
 pub fn timestamp(value: timestamp.Timestamp) -> Value {
   let #(s, ns) = timestamp.to_unix_seconds_and_nanoseconds(value)
   let ms = ns / 1_000_000
@@ -288,21 +384,47 @@ pub fn timestamp(value: timestamp.Timestamp) -> Value {
 @external(javascript, "./sql.ffi.mjs", "encodeTimestamp")
 fn encode_timestamp(milliseconds: Int) -> Value
 
+/// Decode a timestamp coming from the database.
 pub fn timestamp_decoder() {
-  use content <- decode.then(decode.dynamic)
-  case date_to_ints(content) {
-    Error(_) -> decode.failure(timestamp.from_unix_seconds(0), "Timestamp")
-    Ok(#(seconds, nanoseconds)) -> {
-      decode.success({
-        timestamp.from_unix_seconds_and_nanoseconds(seconds, nanoseconds)
-      })
-    }
-  }
+  decode.one_of(
+    decode.string
+      |> decode.then(fn(content) {
+        case timestamp.parse_rfc3339(content) {
+          Ok(content) -> decode.success(content)
+          Error(_) ->
+            decode.failure(timestamp.from_unix_seconds(0), "Timestamp")
+        }
+      }),
+    or: [
+      decode.dynamic
+      |> decode.then(fn(content) {
+        case date_to_ints(content) {
+          Error(_) ->
+            decode.failure(timestamp.from_unix_seconds(0), "Timestamp")
+          Ok(#(seconds, nanoseconds)) -> {
+            decode.success({
+              timestamp.from_unix_seconds_and_nanoseconds(seconds, nanoseconds)
+            })
+          }
+        }
+      }),
+    ],
+  )
 }
 
 @external(javascript, "./sql.ffi.mjs", "dateToInts")
 fn date_to_ints(dynamic: decode.Dynamic) -> Result(#(Int, Int), Nil)
 
+/// Execute an SQL query against the database.
+///
+/// ```gleam
+/// import brioche/sql
+/// let assert Ok(client) = sql.client(sql.default_config())
+/// sql.query("SELECT $1")
+/// |> sql.parameter(sql.float(1.0))
+/// |> sql.returning(decode.at([0], decode.float))
+/// |> sql.execute(client)
+/// ```
 pub fn execute(
   query: Query(a),
   connection: Connection,
@@ -320,18 +442,65 @@ fn do_run(
   connection: Connection,
 ) -> Promise(Result(Returned(decode.Dynamic), SqlError))
 
+/// Create a transaction, allowing you to group queries together to rollback all
+/// queries when one goes wrong.
+///
+/// ```gleam
+/// import brioche/sql
+/// let assert Ok(client) = sql.client(sql.default_config())
+/// sql.transaction(client, fn (client) {
+///   use id1 <- promise.try_await({
+///     sql.query("SELECT $1")
+///     |> sql.parameter(sql.float(1.0))
+///     |> sql.returning(decode.at([0], decode.float))
+///     |> sql.execute(client)
+///   })
+///   use id2 <- promise.try_await({
+///     sql.query("SELECT $1")
+///     |> sql.parameter(sql.float(1.0))
+///     |> sql.returning(decode.at([0], decode.float))
+///     |> sql.execute(client)
+///   })
+///   promise.resolve(Ok(#(id1, id2)))
+/// })
+/// ```
 @external(javascript, "./sql.ffi.mjs", "transaction")
 pub fn transaction(
   connection: Connection,
   handler: fn(Connection) -> Promise(Result(a, SqlError)),
 ) -> Promise(Result(a, SqlError))
 
+/// Create a savepoint during a transaction. When something goes wrong in a
+/// transaction, the transaction will rollback until the savepoint.
+///
+/// ```gleam
+/// import brioche/sql
+/// let assert Ok(client) = sql.client(sql.default_config())
+/// sql.transaction(client, fn (client) {
+///   use id1 <- promise.try_await({
+///     sql.query("SELECT $1")
+///     |> sql.parameter(sql.float(1.0))
+///     |> sql.returning(decode.at([0], decode.float))
+///     |> sql.execute(client)
+///   })
+///   // Define a savepoint, to rollback easily to that point.
+///   use client <- sql.savepoint(client)
+///   use id2 <- promise.try_await({
+///     sql.query("SELECT $1")
+///     |> sql.parameter(sql.float(1.0))
+///     |> sql.returning(decode.at([0], decode.float))
+///     |> sql.execute(client)
+///   })
+///   promise.resolve(Ok(#(id1, id2)))
+/// })
+/// ```
 @external(javascript, "./sql.ffi.mjs", "savepoint")
 pub fn savepoint(
   connection: Connection,
   handler: fn(Connection) -> Promise(a),
 ) -> Promise(a)
 
+/// Disconnect from the database.
 @external(javascript, "./sql.ffi.mjs", "close")
 pub fn disconnect(connection: Connection) -> Promise(Nil)
 
@@ -361,11 +530,11 @@ pub type Returned(a) {
 /// Get the name for a PostgreSQL error code.
 ///
 /// ```gleam
-/// > error_code_name("01007")
-/// Ok("privilege_not_granted")
+/// sql.error_code_name("01007")
+/// // -> Ok("privilege_not_granted")
 /// ```
 ///
-/// https://www.postgresql.org/docs/current/errcodes-appendix.html
+/// [PostgreSQL Error Codes](https://www.postgresql.org/docs/current/errcodes-appendix.html)
 pub fn error_code_name(error_code: String) -> Result(String, Nil) {
   case error_code {
     "00000" -> Ok("successful_completion")

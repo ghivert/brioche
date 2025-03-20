@@ -37,7 +37,7 @@ pub fn verify_invalid_test() {
   use verify <- promise.await(verify)
   verify
   |> should.be_error
-  |> should.equal(password.HashInvalid)
+  |> should.equal(password.InvalidHash)
   promise.resolve(Nil)
 }
 
@@ -56,7 +56,7 @@ pub fn verify_sync_invalid_test() {
   let verify = password.verify_sync(password: "example", hash: "invalid")
   verify
   |> should.be_error
-  |> should.equal(password.HashInvalid)
+  |> should.equal(password.InvalidHash)
 }
 
 pub fn options_test() {
@@ -64,7 +64,6 @@ pub fn options_test() {
     password.argon2d()
     |> password.memory_cost(10)
     |> password.time_cost(10)
-    |> password.cost(10)
   })
   |> string.starts_with("$argon2")
   |> should.be_true

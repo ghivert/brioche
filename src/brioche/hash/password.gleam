@@ -1,8 +1,28 @@
+//// Hash and verify passwords using argon2 or bcrypt. Password hashing
+//// functions are necessarily slow, and the functions in the
+//// `brioche/hash/password` will automatically run in a worker thread.
+////
+//// Every hash function should be configured with the desired hashing algorithm
+//// and some features when needed. To simplify the usage of the hashing functions,
+//// you can use the `argon2d`, `argon2i`, `argon2id` & `bcrypt` helpers that
+//// create automatically default hash options for any hash.
+////
+//// ```gleam
+//// import brioche/hash/password
+//// let hash = password.hash("hello world", password.argon2d())
+//// use hash <- promise.await(hash)
+//// let verify = password.verify("hello world", hash)
+//// use verify <- promise.await(verify)
+//// echo verify // True
+//// ```
+////
+//// [Bun Documentation](https://bun.sh/docs/api/hashing#bun-password)
+
 import gleam/javascript/promise.{type Promise}
 import gleam/option.{type Option}
 
 pub type PasswordError {
-  HashInvalid
+  InvalidHash
 }
 
 /// Verify a password against a previously hashed password.
@@ -84,7 +104,6 @@ pub type HashOptions {
     memory_cost: Option(Int),
     /// Number of hash iterations.
     time_cost: Option(Int),
-    cost: Option(Int),
   )
 }
 
@@ -93,7 +112,6 @@ pub fn argon2d() -> HashOptions {
     algorithm: Argon2d,
     memory_cost: option.None,
     time_cost: option.None,
-    cost: option.None,
   )
 }
 
@@ -102,7 +120,6 @@ pub fn argon2id() -> HashOptions {
     algorithm: Argon2id,
     memory_cost: option.None,
     time_cost: option.None,
-    cost: option.None,
   )
 }
 
@@ -111,7 +128,6 @@ pub fn argon2i() -> HashOptions {
     algorithm: Argon2i,
     memory_cost: option.None,
     time_cost: option.None,
-    cost: option.None,
   )
 }
 
@@ -120,7 +136,6 @@ pub fn bcrypt() -> HashOptions {
     algorithm: Bcrypt,
     memory_cost: option.None,
     time_cost: option.None,
-    cost: option.None,
   )
 }
 
@@ -134,9 +149,4 @@ pub fn memory_cost(options: HashOptions, memory_cost: Int) -> HashOptions {
 pub fn time_cost(options: HashOptions, time_cost: Int) -> HashOptions {
   let time_cost = option.Some(time_cost)
   HashOptions(..options, time_cost:)
-}
-
-pub fn cost(options: HashOptions, cost: Int) -> HashOptions {
-  let cost = option.Some(cost)
-  HashOptions(..options, cost:)
 }

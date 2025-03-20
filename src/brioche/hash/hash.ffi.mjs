@@ -7,7 +7,7 @@ export async function verifyPassword(password, hash) {
     const value = await Bun.password.verify(password, hash)
     return new $gleam.Ok(value)
   } catch (error) {
-    return new $gleam.Error(new $password.HashInvalid())
+    return new $gleam.Error(new $password.InvalidHash())
   }
 }
 
@@ -15,7 +15,6 @@ export function hashPassword(password, options) {
   return Bun.password.hash(password, {
     algorithm: convertHashAlgorithm(options.algorithm),
     timeCost: options.time_cost[0],
-    cost: options.cost[0],
     memoryCost: options.memory_cost[0],
   })
 }
@@ -25,7 +24,7 @@ export function verifySyncPassword(password, hash) {
     const value = Bun.password.verifySync(password, hash)
     return new $gleam.Ok(value)
   } catch (error) {
-    return new $gleam.Error(new $password.HashInvalid())
+    return new $gleam.Error(new $password.InvalidHash())
   }
 }
 
@@ -33,7 +32,6 @@ export function hashSyncPassword(password, options) {
   return Bun.password.hashSync(password, {
     algorithm: convertHashAlgorithm(options.algorithm),
     timeCost: options.time_cost[0],
-    cost: options.cost[0],
     memoryCost: options.memory_cost[0],
   })
 }

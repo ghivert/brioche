@@ -6,11 +6,11 @@ import { generateTLS } from './tls.ffi.mjs'
 export function connect(config) {
   try {
     const sql = new bun.SQL({
-      host: config.host,
-      port: config.port,
-      user: config.user,
-      database: config.database,
-      ssl: generateSSL(config.ssl),
+      host: config.host[0],
+      port: config.port[0],
+      user: config.user[0],
+      database: config.database[0],
+      ssl: generateSSL(config.ssl[0]),
       password: config.password[0],
       idle_timeout: config.idle_timeout[0],
       connection_timeout: config.connection_timeout[0],
@@ -25,11 +25,12 @@ export function connect(config) {
     })
     return new $gleam.Ok([sql, config.default_format])
   } catch (error) {
-    return new $gleam.Error()
+    return new $gleam.Error(error)
   }
 }
 
 export function generateSSL(ssl) {
+  if (!ssl) return
   if (ssl instanceof $sql.SslCustom) return generateTLS(ssl.tls)
   if (ssl instanceof $sql.SslEnabled) return true
   return false

@@ -1,3 +1,27 @@
+//// Bun provides a native, highly performant HTTP server, that can respond to
+//// classic HTTP, but also provides first-class experience for WebSockets,
+//// static routes, etc.
+////
+//// In case you want to use an external JavaScript server, it is recommended to
+//// default to `Bun.serve` API to guarantee the performance of the runtime,
+//// and the ability to use any new features from Bun. However, Bun also
+//// implements `node:http` and `node:https` modules, with a fast, Bun-native
+//// internal implementation similar to `Bun.serve`. Feel free to use
+//// them if you like.
+////
+//// `brioche/serve` API is heavily inspired of [`wisp`](https://hexdocs.pm/wisp)
+//// to let you leverage on your current Gleam knowledge, and to integrate
+//// nicely in the Gleam ecosystem! Thanks to all maintainer of `wisp`
+//// for their work!
+////
+//// Bun is also natively compatible with [`glen`](https://hexdocs.pm/glen), as
+//// `glen` only requests compatibility with native JavaScript `Request`
+//// and `Response` objects — which is what Bun implements. In case you want to
+//// reuse some `glen` code with Bun, you can easily plug in `glen`, and avoid
+//// `brioche/serve`. Pick what is most suited to your needs!
+////
+//// [Bun Documentation](https://bun.sh/docs/api/http)
+
 import brioche.{type Server}
 import brioche/internals/exception
 import brioche/tls

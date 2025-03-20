@@ -1,50 +1,54 @@
+//// Bun implements native WebSocket management. At the creation of a server,
+//// you can provide a `websocket` configuration with a `websocket.Config` data
+//// to start managing WebSockets. Bun takes care of everything for you, from
+//// connection to pinging clients to know if they're still online.
+////
+//// `brioche/websockets` provides little abstraction layer on the Bun's API,
+//// but focuses on bringing type-safety and gleamish way to do things.
+////
+//// [Bun Documentation](https://bun.sh/docs/api/websockets)
+
 import brioche as bun
 import gleam/javascript/promise.{type Promise}
 import gleam/option.{type Option, None, Some}
 
 /// Config used to setup Bun's WebSockets. Config can be created by
 /// using [`websocket.init`](#init). It is recommended for each WebSocket Config
-/// to have a text handler and a bytes handler. It can have multiple other options:
-/// - [`on_open`](#on_open), to set the `open` event handler.
-/// - [`on_drain`](#on_drain), to set the `drain` event handler.
-/// - [`on_close`](#on_close), to set the `close` event handler.
-/// - [`on_text`](#on_text), to set the `message` event handler, when a text
-///   message has been sent.
-/// - [`on_bytes`](#on_bytes), to set the `message` event handler, when a bytes
-///   message has been set.
-/// - [`max_payload_length`](#max_payload_length), to define the maximum size of
-///   messages in bytes. Defaults to 16 MB, or `1024 * 1024 * 16` in bytes.
-/// - [`backpressure_limit`](#backpressure_limit), to define the maximum number
-///   of bytes that can be buffered on a single connection. Defaults to 16 MB,
-///   or `1024 * 1024 * 16` in bytes.
-/// - [`close_on_backpressure_limit`](#close_on_backpressure_limit), to define
-///   if the connection should be closed if `backpressure_limit` is reached.
-///   Defaults to `False`.
-/// - [`idle_timeout`](#idle_timeout), to define the number of seconds to
-///   wait before timing out a connection due to no messages or pings. Defaults
-///   to 2 minutes, or `120` in seconds.
-/// - [`publish_to_self`](#publish_to_self), to define if `websocket.publish`
-///   also sends a message to the websocket, if it is subscribed.
-///   Defaults to `False`.
-/// - [`send_pings`](#send_pings), to define if the server should automatically
-///   send and respond to pings to clients. Defaults to `True`.
+/// to have a text handler and a bytes handler.
 ///
 /// > Take note of the context type. That type is used to pass contextual data
 /// > to every WebSocket upon initialisation with `server.upgrade`.
 pub type Config(context) {
   Config(
+    /// Set the `message` event handler, when a text message has been sent.
     on_text_message: Option(fn(bun.WebSocket(context), String) -> Promise(Nil)),
+    /// Set the `message` event handler, when a bytes message has been set.
     on_bytes_message: Option(
       fn(bun.WebSocket(context), BitArray) -> Promise(Nil),
     ),
+    /// Set the `open` event handler.
     on_open: Option(fn(bun.WebSocket(context)) -> Promise(Nil)),
+    /// Set the `close` event handler.
     on_close: Option(fn(bun.WebSocket(context), Int, String) -> Promise(Nil)),
+    /// Set the `drain` event handler.
     on_drain: Option(fn(bun.WebSocket(context)) -> Promise(Nil)),
+    /// Define the maximum size of messages in bytes. Defaults to 16 MB,
+    /// or `1024 * 1024 * 16` in bytes.
     max_payload_length: Option(Int),
+    /// Define the maximum number of bytes that can be buffered on a single
+    /// connection. Defaults to 16 MB, or `1024 * 1024 * 16` in bytes.
     backpressure_limit: Option(Int),
+    /// Define if the connection should be closed if `backpressure_limit` is
+    /// reached. Defaults to `False`.
     close_on_backpressure_limit: Option(Int),
+    /// Define the number of seconds to wait before timing out a connection
+    /// due to no messages or pings. Defaults to 2 minutes, or `120` in seconds.
     idle_timeout: Option(Int),
+    /// Define if `websocket.publish` also sends a message to the websocket,
+    /// if it is subscribed. Defaults to `False`.
     publish_to_self: Option(Bool),
+    /// Define if the server should automatically send and respond to pings
+    /// to clients. Defaults to `True`.
     send_pings: Option(Bool),
   )
 }

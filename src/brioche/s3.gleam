@@ -1,3 +1,17 @@
+//// Bun implements native S3 Client, built directly in the runtime. S3 Client
+//// is highly optimized, and rely on JavaScript Core internals for some part
+//// of the client.
+////
+//// Because S3 is built in the runtime, it allows you to use `Bun.File`
+//// directly with the S3 protocol, or to consider S3 files as native `Bun.File`.
+//// This can help when reading or returning S3 data to your client, or when
+//// manipulating files between your servers or S3.
+////
+//// In case you dislike the API, or you need different features, feel free to
+//// use any other S3 client.
+////
+//// [Bun Documentation](https://bun.sh/docs/api/s3)
+
 import brioche
 import gleam/http
 import gleam/option.{type Option}
@@ -34,7 +48,7 @@ pub type Client
 /// > Amazon S3 checks the corresponding ACL to verify that the requester has
 /// > the necessary access permissions.
 ///
-/// [Documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/acl-overview.html)
+/// [AWS Documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/acl-overview.html)
 pub type Acl {
   Private
   PublicRead
@@ -55,7 +69,7 @@ pub type Acl {
 /// > availability for your objects. All of these storage classes offer high
 /// > durability.
 ///
-/// [Documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html)
+/// [AWS Documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html)
 pub type StorageClass {
   Standard
   DeepArchive

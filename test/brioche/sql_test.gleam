@@ -81,7 +81,7 @@ fn start_default() {
 fn default_config() {
   sql.Config(
     ..sql.default_config(),
-    database: "gleam_pog_test",
+    database: Some("gleam_pog_test"),
     password: Some("postgres"),
   )
 }

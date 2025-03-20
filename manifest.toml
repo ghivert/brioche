@@ -4,7 +4,7 @@
 packages = [
   { name = "bigi", version = "3.2.1", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "bigi", source = "hex", outer_checksum = "13AA60457C0001DB27E4B79518D3F77816115C07A952F6C9C74B715F49481B46" },
   { name = "exception", version = "2.0.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "exception", source = "hex", outer_checksum = "F5580D584F16A20B7FCDCABF9E9BE9A2C1F6AC4F9176FA6DD0B63E3B20D450AA" },
-  { name = "gleam_fetch", version = "1.1.1", build_tools = ["gleam"], requirements = ["gleam_http", "gleam_javascript", "gleam_stdlib"], otp_app = "gleam_fetch", source = "hex", outer_checksum = "95EB211CD35AB9B34B1C34693FAD938725520746EC938EA8FCB8BC82F40959DC" },
+  { name = "gleam_fetch", version = "1.2.0", build_tools = ["gleam"], requirements = ["gleam_http", "gleam_javascript", "gleam_stdlib"], otp_app = "gleam_fetch", source = "hex", outer_checksum = "F521EA72B6FDB5A6908C04B5D789DCBDD70C2E330B563576832FA2A68F4AEFD9" },
   { name = "gleam_http", version = "4.0.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "gleam_http", source = "hex", outer_checksum = "0A62451FC85B98062E0907659D92E6A89F5F3C0FBE4AB8046C99936BF6F91DBC" },
   { name = "gleam_javascript", version = "1.0.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "gleam_javascript", source = "hex", outer_checksum = "EF6C77A506F026C6FB37941889477CD5E4234FCD4337FF0E9384E297CB8F97EB" },
   { name = "gleam_json", version = "2.3.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "gleam_json", source = "hex", outer_checksum = "C55C5C2B318533A8072D221C5E06E5A75711C129E420DD1CE463342106012E5D" },
@@ -16,7 +16,7 @@ packages = [
 [requirements]
 bigi = { version = ">= 3.0.0 and < 4.0.0" }
 exception = { version = ">= 2.0.0 and < 3.0.0" }
-gleam_fetch = { version = ">= 1.1.0 and < 2.0.0" }
+gleam_fetch = { version = ">= 1.2.0 and < 2.0.0" }
 gleam_http = { version = ">= 4.0.0 and < 5.0.0" }
 gleam_javascript = { version = ">= 1.0.0 and < 2.0.0" }
 gleam_json = { version = ">= 2.0.0 and < 3.0.0" }

@@ -35,7 +35,7 @@ brioche = ">= 1.0.0 and < 2.0.0"
 gleam_stdlib = ">= 0.44.0 and < 2.0.0"
 gleam_javascript = ">= 1.0.0 and < 2.0.0"
 gleam_http = ">= 4.0.0 and < 5.0.0"
-gleam_fetch = ">= 1.1.0 and < 2.0.0"
+gleam_fetch = ">= 1.2.0 and < 2.0.0"
 gleam_json = ">= 2.0.0 and < 3.0.0"
 
 [dev-dependencies]
