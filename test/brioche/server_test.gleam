@@ -7,6 +7,7 @@ import brioche/websocket
 import gleam/bool
 import gleam/dynamic/decode
 import gleam/fetch
+import gleam/fetch/form_data
 import gleam/http
 import gleam/http/request
 import gleam/javascript/promise.{await}
@@ -206,6 +207,121 @@ pub fn escape_html_test() {
   input
   |> bun.escape_html
   |> should.equal(output)
+}
+
+pub fn body_string_middleware_test() {
+  let server =
+    bun.handler(fn(request, _server) {
+      use content <- bun.require_string_body(request)
+      content |> should.equal("Hello world!")
+      promise.resolve(bun.ok())
+    })
+    |> bun.port(0)
+    |> bun.serve
+  use _ <- await({
+    bun.get_port(server)
+    |> to_local("/")
+    |> request.set_method(http.Post)
+    |> request.set_body("Hello world!")
+    |> fetch.send
+    |> promise.tap(fn(response) {
+      let response = response |> should.be_ok
+      response.status |> should.equal(200)
+    })
+  })
+  bun.stop(server, force: False)
+}
+
+pub fn body_bit_array_middleware_test() {
+  let server =
+    bun.handler(fn(request, _server) {
+      use content <- bun.require_bit_array_body(request)
+      content |> should.equal(<<"Hello world!">>)
+      promise.resolve(bun.ok())
+    })
+    |> bun.port(0)
+    |> bun.serve
+  use _ <- await({
+    bun.get_port(server)
+    |> to_local("/")
+    |> request.set_method(http.Post)
+    |> request.set_body(<<"Hello world!">>)
+    |> fetch.send_bits
+    |> promise.tap(fn(response) {
+      let response = response |> should.be_ok
+      response.status |> should.equal(200)
+    })
+  })
+  bun.stop(server, force: False)
+}
+
+pub fn body_form_data_middleware_test() {
+  let server =
+    bun.handler(fn(request, _server) {
+      use content <- bun.require_form(request)
+      content |> form_data.get("key") |> should.equal(["value"])
+      promise.resolve(bun.ok())
+    })
+    |> bun.port(0)
+    |> bun.serve
+  use _ <- await({
+    bun.get_port(server)
+    |> to_local("/")
+    |> request.set_method(http.Post)
+    |> request.set_body(form_data.new() |> form_data.append("key", "value"))
+    |> fetch.send_form_data
+    |> promise.tap(fn(response) {
+      let response = response |> should.be_ok
+      response.status |> should.equal(200)
+    })
+  })
+  bun.stop(server, force: False)
+}
+
+pub fn body_json_middleware_test() {
+  let body = json.to_string(json.object([#("key", json.string("value"))]))
+  let server =
+    bun.handler(fn(request, _server) {
+      use content <- bun.require_json(request)
+      content |> Ok |> should.equal(json.parse(body, decode.dynamic))
+      promise.resolve(bun.ok())
+    })
+    |> bun.port(0)
+    |> bun.serve
+  use _ <- await({
+    bun.get_port(server)
+    |> to_local("/")
+    |> request.set_method(http.Post)
+    |> request.set_body(body)
+    |> fetch.send
+    |> promise.tap(fn(response) {
+      let response = response |> should.be_ok
+      response.status |> should.equal(200)
+    })
+  })
+  bun.stop(server, force: False)
+}
+
+pub fn body_json_failure_middleware_test() {
+  let server =
+    bun.handler(fn(request, _server) {
+      use _content <- bun.require_json(request)
+      promise.resolve(bun.ok())
+    })
+    |> bun.port(0)
+    |> bun.serve
+  use _ <- await({
+    bun.get_port(server)
+    |> to_local("/")
+    |> request.set_method(http.Post)
+    |> request.set_body("wrong json")
+    |> fetch.send
+    |> promise.tap(fn(response) {
+      let response = response |> should.be_ok
+      response.status |> should.equal(400)
+    })
+  })
+  bun.stop(server, force: False)
 }
 
 fn foo_bar(req: Request, _server: Server(ctx)) {

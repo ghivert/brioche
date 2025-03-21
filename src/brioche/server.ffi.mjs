@@ -85,6 +85,34 @@ export const wsUnsubscribe = (ws, topic) => ws.unsubscribe(topic)
 export const wsIsSubscribed = (ws, topic) => ws.isSubscribed(topic)
 export const wsCork = (ws, callback) => ws.cork(callback)
 
+export async function readRequestBody(request, type) {
+  try {
+    switch (type) {
+      case 'bytes': {
+        const body = await request.bytes()
+        const bitArray = $gleam.toBitArray(body)
+        return new $gleam.Ok(bitArray)
+      }
+      case 'form-data': {
+        const body = await request.formData()
+        return new $gleam.Ok(body)
+      }
+      case 'json': {
+        const body = await request.json()
+        return new $gleam.Ok(body)
+      }
+      case 'text': {
+        const body = await request.text()
+        return new $gleam.Ok(body)
+      }
+      default:
+        throw new Error()
+    }
+  } catch (error) {
+    return new $gleam.Error()
+  }
+}
+
 export function wsSend(ws, message) {
   const message_ = message.rawBuffer !== undefined ? message.rawBuffer : message
   const result = ws.send(message_)

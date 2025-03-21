@@ -27,6 +27,8 @@ import brioche/internals/exception
 import brioche/tls
 import brioche/websocket.{type WebSocketSendStatus}
 import gleam/bytes_tree.{type BytesTree}
+import gleam/dynamic/decode
+import gleam/fetch/form_data.{type FormData}
 import gleam/http
 import gleam/http/request
 import gleam/http/response
@@ -52,7 +54,7 @@ pub type Request =
 pub type Response =
   response.Response(Body)
 
-/// Incoming message received by a server. Under-the-hood, `IntomingMessage`
+/// Incoming message received by a server. Under-the-hood, `IncomingMessage`
 /// is the real JavaScript `Request` object. Due to its nature, it cannot be
 /// used as-is in Gleam. `IncomingMessage` should always be managed directly
 /// with the appropriate functions to stay type-safe all along.
@@ -488,6 +490,132 @@ pub fn ref(server: Server(context)) -> Server(context)
 /// Returns the same server to allow chaining calls if needed.
 @external(javascript, "./server.ffi.mjs", "unref")
 pub fn unref(server: Server(context)) -> Server(context)
+
+/// A middleware function which reads the entire body of the request as a string.
+///
+/// This function does not cache the body in any way, so if you call this
+/// function (or any other body reading function) more than once, Bun will throw
+/// an error. It is the responsibility of the caller to cache the body if it is
+/// needed multiple times.
+///
+/// ```gleam
+/// fn handle_request(request: Request) -> Promise(Response) {
+///   use body <- server.require_string_body(request)
+///   // ...
+/// }
+/// ```
+pub fn require_string_body(
+  request: Request,
+  next: fn(String) -> Promise(Response),
+) -> Promise(Response) {
+  use content <- promise.await(read_request_body(request.body, "text"))
+  case content {
+    Ok(content) -> next(content)
+    Error(_) -> promise.resolve(bad_request())
+  }
+}
+
+/// A middleware function which reads the entire body of the request as a bit
+/// string.
+///
+/// This function does not cache the body in any way, so if you call this
+/// function (or any other body reading function) more than once, Bun will throw
+/// an error. It is the responsibility of the caller to cache the body if it is
+/// needed multiple times.
+///
+/// ```gleam
+/// fn handle_request(request: Request) -> Promise(Response) {
+///   use body <- server.require_bit_array_body(request)
+///   // ...
+/// }
+/// ```
+pub fn require_bit_array_body(
+  request: Request,
+  next: fn(BitArray) -> Promise(Response),
+) -> Promise(Response) {
+  use content <- promise.await(read_request_body(request.body, "bytes"))
+  case content {
+    Ok(content) -> next(content)
+    Error(_) -> promise.resolve(bad_request())
+  }
+}
+
+/// A middleware function which reads the entire body of the request as a
+/// `FormData`. You should use functions from `gleam/fetch/form_data` to
+/// manipulate that object.
+///
+/// In case the body cannot be read as a `FormData`, a 400: Bad Request
+/// response will be sent instead.
+///
+/// This function does not cache the body in any way, so if you call this
+/// function (or any other body reading function) more than once, Bun will throw
+/// an error. It is the responsibility of the caller to cache the body if it is
+/// needed multiple times.
+///
+/// ```gleam
+/// fn handle_request(request: Request) -> Promise(Response) {
+///   use body <- server.require_form(request)
+///   // ...
+/// }
+/// ```
+pub fn require_form(
+  request: Request,
+  next: fn(FormData) -> Promise(Response),
+) -> Promise(Response) {
+  use content <- promise.await(read_request_body(request.body, "form-data"))
+  case content {
+    Ok(content) -> next(content)
+    Error(_) -> promise.resolve(bad_request())
+  }
+}
+
+/// A middleware function which reads the entire body of the request as a JSON.
+///
+/// In case the body cannot be read as a JSON, a 400: Bad Request response will
+/// be sent instead.
+///
+/// This function does not cache the body in any way, so if you call this
+/// function (or any other body reading function) more than once, Bun will throw
+/// an error. It is the responsibility of the caller to cache the body if it is
+/// needed multiple times.
+///
+/// ```gleam
+/// fn handle_request(request: Request) -> Promise(Response) {
+///   use body <- server.require_json(request)
+///   // ...
+/// }
+/// ```
+pub fn require_json(
+  request: Request,
+  next: fn(decode.Dynamic) -> Promise(Response),
+) -> Promise(Response) {
+  use content <- promise.await(read_request_body(request.body, "json"))
+  case content {
+    Ok(content) -> next(content)
+    Error(_) -> promise.resolve(bad_request())
+  }
+}
+
+/// Read the entire body of the request as a bit string.
+///
+/// You may instead wish to use the `require_bit_array_body` or the
+/// `require_string_body` middleware functions instead.
+///
+/// This function does not cache the body in any way, so if you call this
+/// function (or any other body reading function) more than once, Bun will throw
+/// an error. It is the responsibility of the caller to cache the body if it is
+/// needed multiple times.
+pub fn read_body_to_bitstring(
+  request: Request,
+) -> Promise(Result(BitArray, Nil)) {
+  read_request_body(request.body, "bytes")
+}
+
+@external(javascript, "./server.ffi.mjs", "readRequestBody")
+fn read_request_body(
+  request: IncomingMessage,
+  type_: String,
+) -> Promise(Result(a, Nil))
 
 /// Set a custom idle timeout for individual requests, or pass 0 to disable
 /// the timeout for a request. Timeout is indicated in seconds.
