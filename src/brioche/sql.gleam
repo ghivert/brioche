@@ -228,12 +228,12 @@ pub fn default_format(config: Config, default_format: Format) {
 /// don't want Bun to automatically read the environment variable of URL config,
 /// or when you need to add some additional configuration.
 pub fn url_config(database_url: String) -> Result(Config, Nil) {
-  use uri <- result.then(uri.parse(database_url))
+  use uri <- result.try(uri.parse(database_url))
   let uri = case uri.port {
     option.Some(..) -> uri
     option.None -> uri.Uri(..uri, port: option.Some(5432))
   }
-  use #(userinfo, host, path, db_port, query) <- result.then(case uri {
+  use #(userinfo, host, path, db_port, query) <- result.try(case uri {
     uri.Uri(
       scheme: option.Some(scheme),
       userinfo: option.Some(userinfo),
@@ -250,8 +250,8 @@ pub fn url_config(database_url: String) -> Result(Config, Nil) {
     }
     _ -> Error(Nil)
   })
-  use #(user, password) <- result.then(extract_user_password(userinfo))
-  use ssl <- result.then(extract_ssl_mode(query))
+  use #(user, password) <- result.try(extract_user_password(userinfo))
+  use ssl <- result.try(extract_ssl_mode(query))
   case string.split(path, "/") {
     ["", database] ->
       Ok(
@@ -289,8 +289,8 @@ fn extract_ssl_mode(query: option.Option(String)) -> Result(Option(Ssl), Nil) {
   case query {
     option.None -> Ok(option.None)
     option.Some(query) -> {
-      use query <- result.then(uri.parse_query(query))
-      use sslmode <- result.then(list.key_find(query, "sslmode"))
+      use query <- result.try(uri.parse_query(query))
+      use sslmode <- result.try(list.key_find(query, "sslmode"))
       case sslmode {
         "require" -> Ok(option.Some(SslEnabled))
         "verify-ca" | "verify-full" -> Ok(option.Some(SslEnabled))
@@ -430,7 +430,7 @@ pub fn execute(
   connection: Connection,
 ) -> Promise(Result(Returned(a), SqlError)) {
   use rows <- promise.map(do_run(query, connection))
-  use Returned(rows:, count:) <- result.then(rows)
+  use Returned(rows:, count:) <- result.try(rows)
   list.try_map(rows, decode.run(_, query.expecting))
   |> result.map(fn(rows) { Returned(rows:, count:) })
   |> result.map_error(UnexpectedResultType)
